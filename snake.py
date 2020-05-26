@@ -4,15 +4,20 @@ import pygame
 import time
 
 class Player:
-    x =  20
-    y = 20
+    x = 20
+    y = 20 
     xs = deque()
     ys = deque()
-    # speed = 1
 
-    def __init__(self):
-        self._direction = "RIGHT"
+    def __init__(self, x_start=20, y_start=20, start_direction="RIGHT"):
+        self._X_START = x_start
+        self._Y_START = y_start
+        self._START_DIRECTION = start_direction
+        self._direction = start_direction
         self._bSize = 20
+
+        self.x = x_start
+        self.y = y_start
 
     def moveRight(self):
         self._direction = "RIGHT"
@@ -39,18 +44,19 @@ class Player:
             self.y = self.y + self._bSize
 
     def reset(self):
-        self.x = 20
-        self.y = 20
+        self.x = self._X_START
+        self.y = self._Y_START
         self.xs = deque()
         self.ys = deque()
-        self._direction = "RIGHT"
+        self._direction = self._START_DIRECTION 
 
 class App:
 
     windowHeight = 1600
     windowWidth = 3000
-    player = 0
-    
+    n_players = 2
+    players = 0
+
     # COLOR CONSTANTS
     BLACK = (0,0,0)
     YELLOW = (255,255,0)
@@ -65,7 +71,10 @@ class App:
         self._running = True
         self._game_over = False
         self._display_surf = True
-        self.player = Player()
+
+        player1 = Player(20, 20, "RIGHT")
+        player2 = Player(self.windowWidth - 40, 20, "LEFT")
+        self.players = [player1, player2]
 
     def on_init(self):
         pygame.init()
@@ -78,29 +87,34 @@ class App:
             self._running = False
 
     def on_loop(self):
-        if not self._game_over: self.player.addBlock()
-        # collision detection: wall
-        if self.player.x < 0 or self.player.y < 0 or self.player.y + 20 > self.windowHeight or self.player.x + 20 > self.windowWidth:
-            self._game_over = True
-        # collision detection: self
-        for coord in zip(self.player.xs, self.player.ys):
-            if coord == (self.player.x, self.player.y): self._game_over = True
+        if not self._game_over: 
+            for player in self.players: 
+                player.addBlock()
+                # collision detection: wall
+                if player.x < 0 or player.y < 0 or player.y + 20 > self.windowHeight or player.x + 20 > self.windowWidth:
+                    self._game_over = True
+                # collision detection: self
+                for coord in zip(player.xs, player.ys):
+                    for inner_player in self.players: 
+                        if coord == (inner_player.x, inner_player.y): self._game_over = True
 
     def on_render(self):
         self._display_surf.fill(self.BLACK)
         
-        for coord in zip(self.player.xs, self.player.ys):
-            pygame.draw.rect(self._display_surf, self.YELLOW, (coord[0], coord[1], 20, 20), 0)
-        pygame.draw.rect(self._display_surf, self.YELLOW, (self.player.x, self.player.y, 20, 20), 0)
-        if self._game_over: self._render_gameover()
-
+        for player in self.players:
+            for coord in zip(player.xs, player.ys):
+                pygame.draw.rect(self._display_surf, self.YELLOW, (coord[0], coord[1], 20, 20), 0)
+            pygame.draw.rect(self._display_surf, self.YELLOW, (player.x, player.y, 20, 20), 0)
+        
+        if self._game_over: self._draw_gameover()
         pygame.display.flip()
 
     def on_cleanup(self): 
         pygame.quit()
 
     def on_reset(self):
-        self.player.reset()
+        for player in self.players:
+            player.reset()
         self._game_over = False
 
     def on_execute(self):
@@ -115,21 +129,21 @@ class App:
             keys = pygame.key.get_pressed()
             if keys[K_ESCAPE]: self._running = False
 
-            if keys[K_RIGHT]: self.player.moveRight()
-            if keys[K_LEFT]: self.player.moveLeft()
-            if keys[K_UP]: self.player.moveUp()
-            if keys[K_DOWN]: self.player.moveDown()
+            if keys[K_RIGHT]: self.players[1].moveRight()
+            if keys[K_LEFT]: self.players[1].moveLeft()
+            if keys[K_UP]: self.players[1].moveUp()
+            if keys[K_DOWN]: self.players[1].moveDown()
 
             self.on_loop()
             self.on_render()
-            time.sleep(1/25)
+            time.sleep(1/30)
 
         self.on_cleanup()
 
     def set_running_false(self):
         self._running = False
 
-    def _render_gameover(self):
+    def _draw_gameover(self):
         font = pygame.font.Font(None, 250)
         text = font.render("Game Over", True, self.WHITE)
         text_rect = text.get_rect()
