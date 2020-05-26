@@ -47,8 +47,8 @@ class Player:
 
 class App:
 
-    windowHeight = 1000
-    windowWidth = 1000
+    windowHeight = 1600
+    windowWidth = 3000
     player = 0
     
     # COLOR CONSTANTS
