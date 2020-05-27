@@ -9,6 +9,7 @@ class Player:
     xs = deque()
     ys = deque()
     color = (255,255,255)
+    alive = True
 
     def __init__(self, x_start=20, y_start=20, start_direction="RIGHT", color=(255,255,255)):
         self._X_START = x_start
@@ -53,6 +54,8 @@ class App:
     windowWidth = 3000
     players = []
     n_players = 1
+    scores = []
+    winners = []
 
     # COLOR CONSTANTS
     BLACK = (0,0,0)
@@ -64,8 +67,10 @@ class App:
     DARKTEAL = (27,70,65)
     DARKTEALHOVER = (55,84,76)
     LIMEGREEN = (143,250,0)
-    MAUVE = (216,203,207)
-    PINK = (49,181,252)
+    MAUVE = (216,176,186)
+    PINK = (249,181,252)
+    LIGHTBLUE = (87,178,220)
+    SAND = (231,174,121)
 
     def __init__(self):
         self._running = True
@@ -85,15 +90,26 @@ class App:
 
     def on_loop(self):
         if not self._newgame and not self._game_over: 
-            for player in self.players: 
-                player.addBlock()
-                # collision detection: wall
-                if player.x < 0 or player.y < 0 or player.y + 20 > self.windowHeight or player.x + 20 > self.windowWidth:
-                    self._game_over = True
-                # collision detection: other snakes
-                for coord in zip(player.xs, player.ys):
-                    for inner_player in self.players: 
-                        if coord == (inner_player.x, inner_player.y): self._game_over = True
+            for i in range(self.n_players):
+                if self.players[i].alive: 
+                    self.players[i].addBlock()
+                    # collision detection: wall
+                    if self.players[i].x < 0 or self.players[i].y < 0 or self.players[i].y + 20 > self.windowHeight or self.players[i].x + 20 > self.windowWidth:
+                        self.players[i].alive = False
+                        self.winners[i] = 0
+                    # collision detection: other snakes
+                for coord in zip(self.players[i].xs, self.players[i].ys):
+                    for j in range(self.n_players):
+                        if coord == (self.players[j].x, self.players[j].y): 
+                            self.players[j].alive = False
+                            self.winners[j] = 0
+            winner_count = self.n_players 
+            for i in range(self.n_players):
+                if self.winners[i] == 0: winner_count -= 1
+                if winner_count < 2: self._game_over = True
+            if self._game_over: 
+                for i in range(self.n_players):
+                    if self.winners[i] == 1: self.scores[i] += 1
 
     def on_render(self):
         self._display_surf.fill(self.BLACK)
@@ -114,8 +130,12 @@ class App:
 
     def on_reset(self):
         self.players = []
+        self.losers = []
+        if self.n_players == 1: self.set_oneplayer()
+        elif self.n_players == 2: self.set_twoplayer()
+        elif self.n_players == 3: self.set_threeplayer()
+        elif self.n_players == 4: self.set_fourplayer()
         self._game_over = False
-        self._newgame = True
 
     def on_execute(self):
         if self.on_init() == False:
@@ -123,8 +143,7 @@ class App:
 
         while self._running:
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self._running = False
+                self.on_event(event)
             
             keys = pygame.key.get_pressed()
             if keys[K_ESCAPE]: self._running = False
@@ -162,31 +181,43 @@ class App:
     def set_running_false(self): 
         self._running = False
 
+    def set_newgame_true(self):
+        self._game_over = False
+        self._newgame = True
+
     def set_oneplayer(self): 
         self.n_players = 1
         player1 = Player(int(self.windowWidth/2), int(self.windowHeight/2), "RIGHT", self.YELLOW)
         self.players = [player1,]
+        if len(self.scores) == 0: self.scores = [0,]
+        self.winners = [1,]
         self._newgame = False
     def set_twoplayer(self): 
         self.n_players = 2
         player1 = Player(20, int(self.windowHeight/2), "RIGHT", self.YELLOW)
         player2 = Player(self.windowWidth - 40, int(self.windowHeight/2), "LEFT", self.MAUVE)
         self.players = [player1, player2]
+        if len(self.scores) == 0: self.scores = [0,0]
+        self.winners = [1,1]
         self._newgame = False
     def set_threeplayer(self): 
         self.n_players = 3
         player1 = Player(20, 500, "RIGHT", self.YELLOW)
         player2 = Player(self.windowWidth - 40, 500, "LEFT", self.MAUVE)
-        player3 = Player(int(self.windowWidth/2), 1100, "UP", self.PINK)
+        player3 = Player(int(self.windowWidth/2), 1100, "UP", self.SAND)
         self.players = [player1, player2, player3]
+        if len(self.scores) == 0: self.scores = [0,0,0]
+        self.winners = [1,1,1]
         self._newgame = False
     def set_fourplayer(self): 
         self.n_players = 4
         player1 = Player(20, 500, "RIGHT", self.YELLOW)
         player2 = Player(self.windowWidth - 40, 500, "LEFT", self.MAUVE)
-        player3 = Player(20, 1100, "RIGHT", self.PINK)
+        player3 = Player(20, 1100, "RIGHT", self.SAND)
         player4 = Player(self.windowWidth - 40, 1100, "LEFT", self.WHITE)
         self.players = [player1, player2, player3, player4]
+        if len(self.scores) == 0: self.scores = [0,0,0,0]
+        self.winners = [1,1,1,1]
         self._newgame = False
     
     def _draw_newgame(self):
@@ -209,8 +240,29 @@ class App:
         text_y = int(self.windowHeight / 2 - text_rect.height / 2 - 200)
         pygame.draw.rect(self._display_surf, self.RED, (text_x - 20, text_y - 20, text_rect.width + 40, text_rect.height + 40 ), 0)
         self._display_surf.blit(text, [text_x, text_y])
+        
+        winner_str = "Winner(s): " 
+        loser_str = "Loser(s): " 
+        for i in range(self.n_players):
+            if i in range(self.n_players): 
+                if self.winners[i] == 0: loser_str += "Player " + str(i + 1) + " "
+                else: 
+                    winner_str += "Player " + str(i + 1) + " "
+        font = pygame.font.Font(None, 50)
+        winner_text = font.render(winner_str, True, self.LIMEGREEN)
+        loser_text = font.render(loser_str, True, self.LIMEGREEN)
+        self._display_surf.blit(winner_text, [int(self.windowWidth / 2 - winner_text.get_rect().width / 2), 200])
+        self._display_surf.blit(loser_text, [int(self.windowWidth / 2 - loser_text.get_rect().width / 2), 280])
+
+        score_str = ""
+        font = pygame.font.Font(None, 75)
+        for i in range(self.n_players):
+            score_str += "Player " + str(i + 1) + ": " + str(self.scores[i]) + "      "
+        score_text = font.render(score_str, True, self.PINK)
+        self._display_surf.blit(score_text, [int(self.windowWidth / 2 - score_text.get_rect().width / 2), 100])
+        
         self._draw_button("Play Again", self.DARKTEAL, self.DARKTEALHOVER, self.on_reset, y=int(self.windowHeight / 2 + 100))
-        self._draw_button("Exit", self.DARKRED, self.DARKREDHOVER, self.set_running_false, y=int(self.windowHeight / 2 + 200))
+        self._draw_button("Exit", self.DARKRED, self.DARKREDHOVER, self.set_newgame_true, y=int(self.windowHeight / 2 + 200))
 
     def _draw_button(self, msg, init_color, hover_color, action, x=-1, y=-1, w=-1, h=-1):
         font = pygame.font.Font(None, 40)
