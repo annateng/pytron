@@ -11,6 +11,8 @@ class Direction(Enum):
     UP = auto()
     DOWN = auto()
 
+step_size = 20
+
 class Bot:
     x = 20
     y = 20
@@ -24,7 +26,6 @@ class Bot:
         self._Y_START = y_start
         self._START_DIRECTION = start_direction
         self.direction = start_direction
-        self._bSize = 20
 
         self.x = x_start
         self.y = y_start
@@ -40,54 +41,63 @@ class Bot:
             "down": -20000 if self.direction == Direction.UP else 0 
         }
 
+        # Prefers to keep going in the same direction
+        same_direction_factor = 20
+        if self.direction == Direction.LEFT: directions["left"] += same_direction_factor
+        if self.direction == Direction.RIGHT: directions["right"] += same_direction_factor
+        if self.direction == Direction.UP: directions["up"] += same_direction_factor
+        if self.direction == Direction.DOWN: directions["down"] += same_direction_factor
+
         # Calculate which directions have more space
+        space_factor = 30
         for i in range(len(players)):
             for px in players[i].xs:
-                if px < self.x:
-                    directions["right"] += 1
-                else:
-                    directions["left"] += 1
+                if px < self.x: directions["right"] += space_factor/len(players[i].xs)
+                elif px > self.x: directions["left"] += space_factor/len(players[i].xs)
             for py in players[i].ys:
-                if py < self.y:
-                    directions["down"] += 1
-                else:
-                   directions["up"] += 1
+                if py < self.y: directions["down"] += space_factor/len(players[i].ys)
+                elif py > self.y: directions["up"] += space_factor/len(players[i].ys)
+        for bx in self.xs:
+            if bx < self.x: directions["right"] += space_factor/len(self.xs)
+            elif bx > self.x: directions["left"] += space_factor/len(self.xs)
+        for by in self.ys:
+            if by < self.y: directions["down"] += space_factor/len(self.ys)
+            elif by > self.y: directions["up"] += space_factor/len(self.ys)
         
         # Don't collide with walls
-        if self.x + 20 == windowWidth:
+        if self.x + step_size == windowWidth:
             directions["right"] -= 20000
-        if self.x - 20 == 0:
+        if self.x == 0:
             directions["left"] -= 20000
-        if self.y + 20 == windowHeight:
+        if self.y + step_size == windowHeight:
             directions["down"] -= 20000
-        if self.y - 20 == 0:
+        if self.y == 0:
             directions["up"] -= 20000
 
         # Don't collide with the other players
         for i in range(len(players)):
             for coord in zip(players[i].xs, players[i].ys):
-                if coord[0] == self.x-20 and coord[1] == self.y:
+                if coord[0] == self.x-step_size and coord[1] == self.y:
                     directions["left"] -= 20000
-                if coord[0] == self.x+20 and coord[1] == self.y:
+                if coord[0] == self.x+step_size and coord[1] == self.y:
                     directions["right"] -= 20000
-                if coord[0] == self.x and coord[1] == self.y-20:
+                if coord[0] == self.x and coord[1] == self.y-step_size:
                     directions["up"] -= 20000
-                if coord[0] == self.x and coord[1] == self.y+20:
+                if coord[0] == self.x and coord[1] == self.y+step_size:
                     directions["down"] -= 20000
 
         # Don't collide with yourself
         for coord in zip(self.xs, self.ys):
-            if coord[0] == self.x-20 and coord[1] == self.y:
+            if coord[0] == self.x-step_size and coord[1] == self.y:
                 directions["left"] -= 20000
-            if coord[0] == self.x+20 and coord[1] == self.y:
+            if coord[0] == self.x+step_size and coord[1] == self.y:
                 directions["right"] -= 20000
-            if coord[0] == self.x and coord[1] == self.y-20:
+            if coord[0] == self.x and coord[1] == self.y-step_size:
                 directions["up"] -= 20000
-            if coord[0] == self.x and coord[1] == self.y+20:
+            if coord[0] == self.x and coord[1] == self.y+step_size:
                 directions["down"] -= 20000
 
         best_direction = max(directions, key=directions.get)
-        print(directions)
         if best_direction == "left": self.direction = Direction.LEFT
         elif best_direction == "right": self.direction = Direction.RIGHT
         elif best_direction == "up": self.direction = Direction.UP
@@ -97,13 +107,13 @@ class Bot:
         self.xs.append(self.x)
         self.ys.append(self.y)
         if self.direction == Direction.RIGHT:
-            self.x = self.x + self._bSize
+            self.x = self.x + step_size
         if self.direction == Direction.LEFT:
-            self.x = self.x - self._bSize
+            self.x = self.x - step_size
         if self.direction == Direction.UP:
-            self.y = self.y - self._bSize
+            self.y = self.y - step_size
         if self.direction == Direction.DOWN:
-            self.y = self.y + self._bSize
+            self.y = self.y + step_size
 
     
 class Player:
@@ -119,7 +129,6 @@ class Player:
         self._Y_START = y_start
         self._START_DIRECTION = start_direction
         self.direction = start_direction
-        self._bSize = 20
 
         self.x = x_start
         self.y = y_start
@@ -143,13 +152,13 @@ class Player:
         self.xs.append(self.x)
         self.ys.append(self.y)
         if self.direction == Direction.RIGHT:
-            self.x = self.x + self._bSize
+            self.x = self.x + step_size
         if self.direction == Direction.LEFT:
-            self.x = self.x - self._bSize
+            self.x = self.x - step_size
         if self.direction == Direction.UP:
-            self.y = self.y - self._bSize
+            self.y = self.y - step_size
         if self.direction == Direction.DOWN:
-            self.y = self.y + self._bSize
+            self.y = self.y + step_size
 
 
 class App:
@@ -210,7 +219,7 @@ class App:
             for i in range(self.n_players):
                 # collision detection: wall
                 if self.players[i].alive:
-                    if self.players[i].x < 0 or self.players[i].y < 0 or self.players[i].y + 20 > self.windowHeight or self.players[i].x + 20 > self.windowWidth:
+                    if self.players[i].x < 0 or self.players[i].y < 0 or self.players[i].y + step_size > self.windowHeight or self.players[i].x + step_size > self.windowWidth:
                         self.players[i].alive = False
                         self.winners[i] = 0
                 # collision detection: other snakes
@@ -229,7 +238,7 @@ class App:
 
             # TODO: UPDATE THIS CODE FOR MULTIPLE BOTS
             if len(self.bots) > 0:
-                if self.bots[0].x < 0 or self.bots[0].y < 0 or self.bots[0].y + 20 > self.windowHeight or self.bots[0].x + 20 > self.windowWidth:
+                if self.bots[0].x < 0 or self.bots[0].y < 0 or self.bots[0].y + step_size > self.windowHeight or self.bots[0].x + step_size > self.windowWidth:
                     self.bots[0].alive = False
                     self.winners[1] = 0
                 for coord in zip(self.bots[0].xs, self.bots[0].ys):
@@ -259,12 +268,12 @@ class App:
         else:
             for player in self.players:
                 for coord in zip(player.xs, player.ys):
-                    pygame.draw.rect(self._display_surf, player.color, (coord[0], coord[1], 20, 20), 0)
-                pygame.draw.rect(self._display_surf, player.color, (player.x, player.y, 20, 20), 0)
+                    pygame.draw.rect(self._display_surf, player.color, (coord[0], coord[1], step_size, step_size), 0)
+                pygame.draw.rect(self._display_surf, player.color, (player.x, player.y, step_size, step_size), 0)
             for player in self.bots:
                 for coord in zip(player.xs, player.ys):
-                    pygame.draw.rect(self._display_surf, player.color, (coord[0], coord[1], 20, 20), 0)
-                pygame.draw.rect(self._display_surf, player.color, (player.x, player.y, 20, 20), 0)
+                    pygame.draw.rect(self._display_surf, player.color, (coord[0], coord[1], step_size, step_size), 0)
+                pygame.draw.rect(self._display_surf, player.color, (player.x, player.y, step_size, step_size), 0)
         
 
         if self._state == self.State.ROUNDOVER: self._draw_gameover()
