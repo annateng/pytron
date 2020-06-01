@@ -4,6 +4,108 @@ from enum import Enum, auto
 import pygame
 import time
 
+
+class Direction(Enum):
+    LEFT = auto()
+    RIGHT = auto()
+    UP = auto()
+    DOWN = auto()
+
+class Bot:
+    x = 20
+    y = 20
+    xs = deque()
+    ys = deque()
+    color = (255, 255, 255)
+    alive = True
+
+    def __init__(self, x_start=20, y_start=20, start_direction=Direction.RIGHT, color=(255,255,255)):
+        self._X_START = x_start
+        self._Y_START = y_start
+        self._START_DIRECTION = start_direction
+        self.direction = start_direction
+        self._bSize = 20
+
+        self.x = x_start
+        self.y = y_start
+        self.xs = deque()
+        self.ys = deque()
+        self.color = color
+
+    def update(self, players, windowWidth, windowHeight):
+        directions = {
+            "left": -20000 if self.direction == Direction.RIGHT else 0,
+            "right": -20000 if self.direction == Direction.LEFT else 0,
+            "up": -20000 if self.direction == Direction.DOWN else 0,
+            "down": -20000 if self.direction == Direction.UP else 0 
+        }
+
+        # Calculate which directions have more space
+        for i in range(len(players)):
+            for px in players[i].xs:
+                if px < self.x:
+                    directions["right"] += 1
+                else:
+                    directions["left"] += 1
+            for py in players[i].ys:
+                if py < self.y:
+                    directions["down"] += 1
+                else:
+                   directions["up"] += 1
+        
+        # Don't collide with walls
+        if self.x + 20 == windowWidth:
+            directions["right"] -= 20000
+        if self.x - 20 == 0:
+            directions["left"] -= 20000
+        if self.y + 20 == windowHeight:
+            directions["down"] -= 20000
+        if self.y - 20 == 0:
+            directions["up"] -= 20000
+
+        # Don't collide with the other players
+        for i in range(len(players)):
+            for coord in zip(players[i].xs, players[i].ys):
+                if coord[0] == self.x-20 and coord[1] == self.y:
+                    directions["left"] -= 20000
+                if coord[0] == self.x+20 and coord[1] == self.y:
+                    directions["right"] -= 20000
+                if coord[0] == self.x and coord[1] == self.y-20:
+                    directions["up"] -= 20000
+                if coord[0] == self.x and coord[1] == self.y+20:
+                    directions["down"] -= 20000
+
+        # Don't collide with yourself
+        for coord in zip(self.xs, self.ys):
+            if coord[0] == self.x-20 and coord[1] == self.y:
+                directions["left"] -= 20000
+            if coord[0] == self.x+20 and coord[1] == self.y:
+                directions["right"] -= 20000
+            if coord[0] == self.x and coord[1] == self.y-20:
+                directions["up"] -= 20000
+            if coord[0] == self.x and coord[1] == self.y+20:
+                directions["down"] -= 20000
+
+        best_direction = max(directions, key=directions.get)
+        print(directions)
+        if best_direction == "left": self.direction = Direction.LEFT
+        elif best_direction == "right": self.direction = Direction.RIGHT
+        elif best_direction == "up": self.direction = Direction.UP
+        elif best_direction == "down": self.direction = Direction.DOWN
+
+    def addBlock(self):
+        self.xs.append(self.x)
+        self.ys.append(self.y)
+        if self.direction == Direction.RIGHT:
+            self.x = self.x + self._bSize
+        if self.direction == Direction.LEFT:
+            self.x = self.x - self._bSize
+        if self.direction == Direction.UP:
+            self.y = self.y - self._bSize
+        if self.direction == Direction.DOWN:
+            self.y = self.y + self._bSize
+
+    
 class Player:
     x = 20
     y = 20 
@@ -12,11 +114,11 @@ class Player:
     color = (255,255,255)
     alive = True
 
-    def __init__(self, x_start=20, y_start=20, start_direction="RIGHT", color=(255,255,255)):
+    def __init__(self, x_start=20, y_start=20, start_direction=Direction.RIGHT, color=(255,255,255)):
         self._X_START = x_start
         self._Y_START = y_start
         self._START_DIRECTION = start_direction
-        self._direction = start_direction
+        self.direction = start_direction
         self._bSize = 20
 
         self.x = x_start
@@ -26,28 +128,29 @@ class Player:
         self.color = color
 
     def moveRight(self):
-        self._direction = "RIGHT"
+        self.direction = Direction.RIGHT
 
     def moveLeft(self):
-        self._direction = "LEFT"
+        self.direction = Direction.LEFT
 
     def moveUp(self):
-        self._direction = "UP"
+        self.direction = Direction.UP
 
     def moveDown(self):
-        self._direction = "DOWN"
+        self.direction = Direction.DOWN
         
     def addBlock(self):
         self.xs.append(self.x)
         self.ys.append(self.y)
-        if self._direction == "RIGHT":
+        if self.direction == Direction.RIGHT:
             self.x = self.x + self._bSize
-        if self._direction == "LEFT":
+        if self.direction == Direction.LEFT:
             self.x = self.x - self._bSize
-        if self._direction == "UP":
+        if self.direction == Direction.UP:
             self.y = self.y - self._bSize
-        if self._direction == "DOWN":
+        if self.direction == Direction.DOWN:
             self.y = self.y + self._bSize
+
 
 class App:
 
@@ -59,6 +162,7 @@ class App:
     windowHeight = 1600
     windowWidth = 3000
     players = []
+    bots = []
     n_players = 0
     scores = []
     winners = []
@@ -80,7 +184,7 @@ class App:
     GREEN = (69,111,28)
 
     def __init__(self):
-        self._display_surf = True
+        pass
 
     def on_init(self):
         pygame.init()
@@ -94,21 +198,53 @@ class App:
 
     def on_loop(self):
         if self._state == self.State.PLAYING: 
+            
             for i in range(self.n_players):
                 if self.players[i].alive: 
                     self.players[i].addBlock()
-                    # collision detection: wall
+            if len(self.bots) > 0:
+                if self.bots[0].alive: 
+                    self.bots[0].update(self.players, self.windowWidth, self.windowHeight)
+                    self.bots[0].addBlock()
+            
+            for i in range(self.n_players):
+                # collision detection: wall
+                if self.players[i].alive:
                     if self.players[i].x < 0 or self.players[i].y < 0 or self.players[i].y + 20 > self.windowHeight or self.players[i].x + 20 > self.windowWidth:
                         self.players[i].alive = False
                         self.winners[i] = 0
-                    # collision detection: other snakes
+                # collision detection: other snakes
                 for coord in zip(self.players[i].xs, self.players[i].ys):
                     for j in range(self.n_players):
-                        if coord == (self.players[j].x, self.players[j].y): 
-                            self.players[j].alive = False
-                            self.winners[j] = 0
-            winner_count = self.n_players 
-            for i in range(self.n_players):
+                        if self.players[j].alive:
+                            if coord == (self.players[j].x, self.players[j].y): 
+                                self.players[j].alive = False
+                                self.winners[j] = 0
+                    # TODO: UPDATE THIS CODE FOR MULTIPLE BOTS
+                    if len(self.bots) > 0:
+                        if self.bots[0].alive:
+                            if coord == (self.bots[0].x, self.bots[0].y):
+                                self.bots[0].alive = False
+                                self.winners[1] = 0
+
+            # TODO: UPDATE THIS CODE FOR MULTIPLE BOTS
+            if len(self.bots) > 0:
+                if self.bots[0].x < 0 or self.bots[0].y < 0 or self.bots[0].y + 20 > self.windowHeight or self.bots[0].x + 20 > self.windowWidth:
+                    self.bots[0].alive = False
+                    self.winners[1] = 0
+                for coord in zip(self.bots[0].xs, self.bots[0].ys):
+                    for j in range(self.n_players):
+                        if self.players[j].alive:
+                            if coord == (self.players[j].x, self.players[j].y): 
+                                self.players[j].alive = False
+                                self.winners[j] = 0
+                    if self.bots[0].alive:
+                        if coord == (self.bots[0].x, self.bots[0].y):
+                            self.bots[0].alive = False
+                            self.winners[1] = 0
+
+            winner_count = len(self.winners) #TODO: UPDATE
+            for i in range(len(self.winners)):
                 if self.winners[i] == 0: winner_count -= 1
                 if winner_count < 2: self._state = self.State.ROUNDOVER
             if self._state == self.State.ROUNDOVER: 
@@ -125,7 +261,12 @@ class App:
                 for coord in zip(player.xs, player.ys):
                     pygame.draw.rect(self._display_surf, player.color, (coord[0], coord[1], 20, 20), 0)
                 pygame.draw.rect(self._display_surf, player.color, (player.x, player.y, 20, 20), 0)
+            for player in self.bots:
+                for coord in zip(player.xs, player.ys):
+                    pygame.draw.rect(self._display_surf, player.color, (coord[0], coord[1], 20, 20), 0)
+                pygame.draw.rect(self._display_surf, player.color, (player.x, player.y, 20, 20), 0)
         
+
         if self._state == self.State.ROUNDOVER: self._draw_gameover()
         pygame.display.flip()
 
@@ -134,7 +275,8 @@ class App:
 
     def on_reset(self):
         self.players = []
-        self.losers = []
+        self.winners = []
+        self.bots = []
         if self.n_players == 1: self.set_oneplayer()
         elif self.n_players == 2: self.set_twoplayer()
         elif self.n_players == 3: self.set_threeplayer()
@@ -144,6 +286,7 @@ class App:
     def on_newgame(self):
         self._state = self.State.NEWGAME
         self.scores = []
+        self.bots = []
 
     def on_execute(self):
         if self.on_init() == False:
@@ -189,34 +332,36 @@ class App:
 
     def set_oneplayer(self): 
         self.n_players = 1
-        player1 = Player(int(self.windowWidth/2), int(self.windowHeight/2), "RIGHT", self.YELLOW)
+        player1 = Player(20, int(self.windowHeight/2), Direction.RIGHT, self.YELLOW)
+        bot1 = Bot(self.windowWidth - 40, int(self.windowHeight/2), Direction.LEFT, self.MAUVE)
         self.players = [player1,]
-        if len(self.scores) == 0: self.scores = [0,]
-        self.winners = [1,]
+        self.bots = [bot1,]
+        if len(self.scores) == 0: self.scores = [0,0]
+        self.winners = [1,1]
         self._state = self.State.PLAYING
     def set_twoplayer(self): 
         self.n_players = 2
-        player1 = Player(20, int(self.windowHeight/2), "RIGHT", self.YELLOW)
-        player2 = Player(self.windowWidth - 40, int(self.windowHeight/2), "LEFT", self.MAUVE)
+        player1 = Player(20, int(self.windowHeight/2), Direction.RIGHT, self.YELLOW)
+        player2 = Player(self.windowWidth - 40, int(self.windowHeight/2), Direction.LEFT, self.MAUVE)
         self.players = [player1, player2]
         if len(self.scores) == 0: self.scores = [0,0]
         self.winners = [1,1]
         self._state = self.State.PLAYING
     def set_threeplayer(self): 
         self.n_players = 3
-        player1 = Player(20, 500, "RIGHT", self.YELLOW)
-        player2 = Player(self.windowWidth - 40, 500, "LEFT", self.MAUVE)
-        player3 = Player(int(self.windowWidth/2), 1100, "UP", self.SAND)
+        player1 = Player(20, 500, Direction.RIGHT, self.YELLOW)
+        player2 = Player(self.windowWidth - 40, 500, Direction.LEFT, self.MAUVE)
+        player3 = Player(int(self.windowWidth/2), self.windowHeight - 40, Direction.UP, self.SAND)
         self.players = [player1, player2, player3]
         if len(self.scores) == 0: self.scores = [0,0,0]
         self.winners = [1,1,1]
         self._state = self.State.PLAYING
     def set_fourplayer(self): 
         self.n_players = 4
-        player1 = Player(20, 500, "RIGHT", self.YELLOW)
-        player2 = Player(self.windowWidth - 40, 500, "LEFT", self.MAUVE)
-        player3 = Player(20, 1100, "RIGHT", self.SAND)
-        player4 = Player(self.windowWidth - 40, 1100, "LEFT", self.WHITE)
+        player1 = Player(20, 500, Direction.RIGHT, self.YELLOW)
+        player2 = Player(self.windowWidth - 40, 500, Direction.LEFT, self.MAUVE)
+        player3 = Player(20, 1100, Direction.RIGHT, self.SAND)
+        player4 = Player(self.windowWidth - 40, 1100, Direction.LEFT, self.WHITE)
         self.players = [player1, player2, player3, player4]
         if len(self.scores) == 0: self.scores = [0,0,0,0]
         self.winners = [1,1,1,1]
