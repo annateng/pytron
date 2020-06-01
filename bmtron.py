@@ -3,6 +3,7 @@ from pygame.locals import *
 from enum import Enum, auto
 import pygame
 import time
+import copy
 
 
 class Direction(Enum):
@@ -57,7 +58,7 @@ class Player:
         }
 
         # Prefers to keep going in the same direction
-        same_direction_factor = 20
+        same_direction_factor = 10
         if self.direction == Direction.LEFT: directions["left"] += same_direction_factor
         if self.direction == Direction.RIGHT: directions["right"] += same_direction_factor
         if self.direction == Direction.UP: directions["up"] += same_direction_factor
@@ -89,8 +90,34 @@ class Player:
         if self.y == 0:
             directions["up"] -= 20000
 
-        # Don't collide with the other players
+        # Don't collide with the other players. Don't trap yourself.
+        bl = False
+        br = False
+        ul = False
+        ur = False
+        up2 = False
+        right2 = False
+        down2 = False
+        left2 = False
+        if self.x == 0:
+            bl = True
+            ul = True
+        if self.y == 0:
+            ul = True
+            ur = True
+        if self.x == windowWidth - 20:
+            ur = True
+            br = True
+        if self.y == windowHeight - 20:
+            br = True
+            bl = True
+        if self.x + 3 * step_size > windowWidth: right2 = True
+        if self.x - 2 * step_size < 0: left2 = True
+        if self.y + 3 * step_size > windowHeight: down2 = True
+        if self.y - 2 * step_size < 0: up2 = True
         for i in range(len(players)):
+            xs_with_head = copy.copy(players[i].xs).append(players[i].x)
+            ys_with_head = copy.copy(players[i].ys).append(players[i].y)
             for coord in zip(players[i].xs, players[i].ys):
                 if coord[0] == self.x-step_size and coord[1] == self.y:
                     directions["left"] -= 20000
@@ -100,6 +127,57 @@ class Player:
                     directions["up"] -= 20000
                 if coord[0] == self.x and coord[1] == self.y+step_size:
                     directions["down"] -= 20000
+                if coord[0] == self.x-step_size and coord[1] == self.y-step_size:
+                    ul = True
+                if coord[0] == self.x-step_size and coord[1] == self.y+step_size:
+                    bl = True
+                if coord[0] == self.x+step_size and coord[1] == self.y-step_size:
+                    ur = True
+                if coord[0] == self.x+step_size and coord[1] == self.y+step_size:
+                    br = True
+                if coord[0] == self.x and coord[1] == self.y - 2 * step_size: up2 = True
+                if coord[0] == self.x and coord[1] == self.y + 2 * step_size: down2 = True
+                if coord[1] == self.y and coord[0] == self.x - 2 * step_size: left2 = True
+                if coord[1] == self.y and coord[0] == self.x + 2 * step_size: right2 = True
+        if ul and ur and up2: directions["up"] -= 20000
+        if ur and br and right2: directions["right"] -= 20000
+        if bl and br and down2: directions["down"] -= 20000
+        if bl and ul and left2: directions["left"] -= 20000
+
+        # Try to cut other players off
+        for i in range(len(players)):
+            if players[i].direction == Direction.RIGHT and self.direction == Direction.RIGHT:
+                if self.x - players[i].x > abs(self.y - players[i].y):
+                    if self.y - players[i].y > 0: directions["up"] += 10000
+                    else: directions["down"] += 10000
+            if players[i].direction == Direction.LEFT and self.direction == Direction.LEFT:
+                if players[i].x - self.x > abs(self.y - players[i].y):
+                    if self.y - players[i].y > 0: directions["up"] += 10000
+                    else: directions["down"] += 10000
+            if players[i].direction == Direction.DOWN and self.direction == Direction.DOWN:
+                if self.y - players[i].y > abs(self.x - players[i].x):
+                    if self.x - players[i].x > 0: directions["left"] += 10000
+                    else: directions["right"] += 10000
+            if players[i].direction == Direction.UP and self.direction == Direction.UP:
+                if players[i].y - self.y > abs(self.x - players[i].x):
+                    if self.x - players[i].x > 0: directions["left"] += 10000
+                    else: directions["right"] += 10000
+            if self.direction == Direction.DOWN and players[i].direction == Direction.RIGHT and self.y - players[i].y < self.x - players[i].x and self.y - players[i].y > 0:
+                directions["down"] += 10000
+            if self.direction == Direction.DOWN and players[i].direction == Direction.LEFT and self.y - players[i].y < players[i].x - self.x and self.y - players[i].y > 0:
+                directions["down"] += 10000
+            if self.direction == Direction.RIGHT and players[i].direction == Direction.UP and players[i].x - self.x < self.y - players[i].y and players[i].x - self.x > 0:
+                directions["right"] += 10000
+            if self.direction == Direction.RIGHT and players[i].direction == Direction.DOWN and players[i].x - self.x < players[i].y - self.y and players[i].x - self.x > 0:
+                directions["right"] += 10000
+            if self.direction == Direction.UP and players[i].direction == Direction.RIGHT and players[i].y - self.y < players[i].x - self.x and players[i].y - self.y > 0:
+                directions["up"] += 10000
+            if self.direction == Direction.UP and players[i].direction == Direction.LEFT and players[i].y - self.y < self.x - players[i].x and players[i].y - self.y > 0:
+                directions["up"] += 10000
+            if self.direction == Direction.LEFT and players[i].direction == Direction.UP and self.x - players[i].x < players[i].y - self.y and self.x - players[i].x > 0:
+                directions["left"] += 10000
+            if self.direction == Direction.LEFT and players[i].direction == Direction.DOWN and self.x - players[i].x < self.y - players[i].y and self.x - players[i].x > 0:
+                directions["left"] += 10000
 
         best_direction = max(directions, key=directions.get)
         if best_direction == "left": self.direction = Direction.LEFT
@@ -132,7 +210,7 @@ class App:
     DARKTEAL = (27,70,65)
     DARKTEALHOVER = (55,84,76)
     LIMEGREEN = (143,250,0)
-    P1COLOR = (159,186,130)
+    P1COLOR = (185,201,103)
     P1HOVER = (P1COLOR[0]-20, P1COLOR[1]-20, P1COLOR[2]-20)
     P2COLOR = (139,121,173)
     P2HOVER = (P2COLOR[0]-20, P2COLOR[1]-20, P2COLOR[2]-20)
@@ -388,6 +466,8 @@ class App:
         if len(winner_str) == 8: winner_str += "nobody"
         font = pygame.font.Font(None, 300)
         winner_text = font.render(winner_str, True, self.LIMEGREEN)
+        winner_rect = winner_text.get_rect()
+        pygame.draw.rect(self._display_surf, self.BLACK, (int(self.windowWidth / 2 - winner_rect.width / 2 - 120), int(100 - winner_rect.height / 2), winner_rect.width + 240, winner_rect.height + 100))
         self._display_surf.blit(winner_text, [int(self.windowWidth / 2 - winner_text.get_rect().width / 2), 100])
 
         score_str = ""
@@ -396,7 +476,7 @@ class App:
             score_str += "Player " + str(i + 1) + ": " + str(self.scores[i]) + "      "
         score_text = font.render(score_str, True, self.WHITE)
         score_rect = score_text.get_rect()
-        pygame.draw.rect(self._display_surf, self.LIGHTGREY, (int(self.windowWidth / 2 - score_rect.width / 2 - 60), int(360 - score_rect.height / 2), score_rect.width + 120, score_rect.height + 40))
+        pygame.draw.rect(self._display_surf, self.BLACK, (int(self.windowWidth / 2 - score_rect.width / 2 - 60), int(360 - score_rect.height / 2), score_rect.width + 120, score_rect.height + 40))
         self._display_surf.blit(score_text, [int(self.windowWidth / 2 - score_text.get_rect().width / 2), 360])
         
         self._draw_button("Play Again", self.DARKTEAL, self.DARKTEALHOVER, self.on_reset, y=int(self.windowHeight / 2 + 100), fontsize=100)
