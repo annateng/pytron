@@ -3,8 +3,12 @@ from pygame.locals import *
 from enum import Enum, auto
 import pygame
 import time
-import copy
-
+import numpy as np
+import heapq
+import os
+if os.path.exists("new_log.txt"):
+  os.remove("new_log.txt")
+f = open("new_log.txt", "a")
 
 class Direction(Enum):
     LEFT = auto()
@@ -13,13 +17,12 @@ class Direction(Enum):
     DOWN = auto()
 
 step_size = 20
-
    
 class Player:
     x = 20
     y = 20 
-    xs = deque()
-    ys = deque()
+    xs = []
+    ys = [] 
     color = (255,255,255)
     alive = True
     is_bot = False
@@ -32,8 +35,8 @@ class Player:
 
         self.x = x_start
         self.y = y_start
-        self.xs = deque()
-        self.ys = deque()
+        self.xs = []
+        self.ys = []
         self.color = color
         self.is_bot = is_bot
 
@@ -49,141 +52,166 @@ class Player:
     def moveDown(self):
         self.direction = Direction.DOWN
         
+    def _i(self, x, y):
+        return (int(x/step_size), int(y/step_size))
+
+    def _get_board(self, players, windowWidth, windowHeight):
+        board = np.full((int(windowWidth/step_size), int(windowHeight/step_size)), False)
+        for player in players:
+            xs = player.xs + [player.x,]
+            ys = player.ys + [player.y,]
+            for coord in zip(xs, ys):
+                board[self._i(coord[0], coord[1])] = True
+        return board
+
+    def _get_valid_directions(self, board, windowWidth, windowHeight):
+        valid_directions = []
+        if self.x != 0 and not board[self._i(self.x-step_size, self.y)]: 
+            valid_directions.append(Direction.LEFT)
+        if self.x+step_size != windowWidth and not board[self._i(self.x+step_size, self.y)]:
+            valid_directions.append(Direction.RIGHT)
+        if self.y != 0 and not board[self._i(self.x, self.y-step_size)]:
+            valid_directions.append(Direction.UP)
+        if self.y+step_size != windowHeight and not board[self._i(self.x, self.y+step_size)]:
+            valid_directions.append(Direction.DOWN)
+        return valid_directions
+
+    def _dfs_score(self, start, board):
+        visited = np.array(board, copy=True)
+        distance = np.full(board.shape, float("inf"))
+        heap = []
+        
+        visited[start] = True
+        score = 0
+        node = (0, start)
+        distance[start] = 0
+        heapq.heappush(heap, node)
+        while not len(heap) == 0 and node[0] < 20: 
+            node = heapq.heappop(heap)
+            block = node[1]
+            left = (block[0]-1, block[1])
+            right = (block[0]+1, block[1])
+            up = (block[0], block[1]-1)
+            down = (block[0], block[1]+1)
+            if block[0] != 0 and not visited[left]:
+                if distance[left] == float("inf"):
+                    distance[left] = distance[block] + 1
+                    heapq.heappush(heap, (distance[left], left))
+                elif distance[left] > distance[block] + 1:
+                    distance[left] = distance[block] + 1
+                    for n in heap:
+                        if n[1] == left: n[0] = distance[block] + 1 
+            if block[0] != board.shape[0] - 1 and not visited[right]:
+                if distance[right] == float("inf"):
+                    distance[right] = distance[block] + 1
+                    heapq.heappush(heap, (distance[right], right))
+                elif distance[right] > distance[block] + 1:
+                    distance[right] = distance[block] + 1
+                    for n in heap:
+                        if n[1] == right: n[0] = distance[block] + 1 
+            if block[1] != 0 and not visited[up]:
+                if distance[up] == float("inf"):
+                    distance[up] = distance[block] + 1
+                    heapq.heappush(heap, (distance[up], up))
+                elif distance[up] > distance[up] + 1:
+                    distance[up] = distance[up] + 1
+                    for n in heap:
+                        if n[1] == up: n[0] = distance[block] + 1 
+            if block[1] != board.shape[1] - 1 and not visited[down]:
+                if distance[down] == float("inf"):
+                    distance[down] = distance[down] + 1
+                    heapq.heappush(heap, (distance[down], down))
+                elif distance[down] > distance[block] + 1:
+                    distance[down] = distance[block] + 1
+                    for n in heap:
+                        if n[1] == down: n[0] = distance[block] + 1 
+            visited[block] = True 
+            score += 1
+
+        return score + len(heap)
+
+    def _get_score(self, board, direction, players):
+        visited = np.array(board, copy=True)
+
+        start = self._i(self.x, self.y)
+        if direction == Direction.UP:
+            start = self._i(self.x, self.y-step_size)
+        elif direction == Direction.LEFT:
+            start = self._i(self.x-step_size, self.y)
+        elif direction == Direction.RIGHT:
+            start = self._i(self.x+step_size, self.y)
+        elif direction == Direction.DOWN:
+            start = self._i(self.x, self.y+step_size)
+        
+        self_score = self._dfs_score(start, board)
+        f.write("self score: ")
+        f.write(str(self_score)+"\n")
+
+        visited[start] = True
+        player_scores = []
+        for player in players:
+            if player.x != self.x:
+                player_scores.append(self._dfs_score(self._i(player.x, player.y), visited))
+
+        final_score = 0
+        for score in player_scores:
+            f.write("player score: ")
+            f.write(str(score) + "\n")
+            final_score += self_score / score
+        f.write("final score:") 
+        f.write(str(final_score) + "\n")
+        return final_score # SHOULD I ADD THE SELF_SCORE?
+
     def update(self, players, windowWidth, windowHeight):
         directions = {
-            "left": -20000 if self.direction == Direction.RIGHT else 0,
-            "right": -20000 if self.direction == Direction.LEFT else 0,
-            "up": -20000 if self.direction == Direction.DOWN else 0,
-            "down": -20000 if self.direction == Direction.UP else 0 
+            Direction.LEFT: -1000,
+            Direction.RIGHT: -1000,
+            Direction.UP: -1000,
+            Direction.DOWN: -1000 
         }
-
-        # Prefers to keep going in the same direction
-        same_direction_factor = 10
-        if self.direction == Direction.LEFT: directions["left"] += same_direction_factor
-        if self.direction == Direction.RIGHT: directions["right"] += same_direction_factor
-        if self.direction == Direction.UP: directions["up"] += same_direction_factor
-        if self.direction == Direction.DOWN: directions["down"] += same_direction_factor
-
-        # Calculate which directions have more space
-        space_factor = 40
-        for i in range(len(players)):
-            for px in players[i].xs:
-                if px < self.x: directions["right"] += space_factor/len(players[i].xs)
-                elif px > self.x: directions["left"] += space_factor/len(players[i].xs)
-            for py in players[i].ys:
-                if py < self.y: directions["down"] += space_factor/len(players[i].ys)
-                elif py > self.y: directions["up"] += space_factor/len(players[i].ys)
-        for bx in self.xs:
-            if bx < self.x: directions["right"] += space_factor/len(self.xs)
-            elif bx > self.x: directions["left"] += space_factor/len(self.xs)
-        for by in self.ys:
-            if by < self.y: directions["down"] += space_factor/len(self.ys)
-            elif by > self.y: directions["up"] += space_factor/len(self.ys)
         
-        # Don't collide with walls
-        if self.x + step_size == windowWidth:
-            directions["right"] -= 20000
-        if self.x == 0:
-            directions["left"] -= 20000
-        if self.y + step_size == windowHeight:
-            directions["down"] -= 20000
-        if self.y == 0:
-            directions["up"] -= 20000
+        board = self._get_board(players, windowWidth, windowHeight)
 
-        # Don't collide with the other players. Don't trap yourself.
-        bl = False
-        br = False
-        ul = False
-        ur = False
-        up2 = False
-        right2 = False
-        down2 = False
-        left2 = False
-        if self.x == 0:
-            bl = True
-            ul = True
-        if self.y == 0:
-            ul = True
-            ur = True
-        if self.x == windowWidth - 20:
-            ur = True
-            br = True
-        if self.y == windowHeight - 20:
-            br = True
-            bl = True
-        if self.x + 3 * step_size > windowWidth: right2 = True
-        if self.x - 2 * step_size < 0: left2 = True
-        if self.y + 3 * step_size > windowHeight: down2 = True
-        if self.y - 2 * step_size < 0: up2 = True
-        for i in range(len(players)):
-            xs_with_head = copy.copy(players[i].xs).append(players[i].x)
-            ys_with_head = copy.copy(players[i].ys).append(players[i].y)
-            for coord in zip(players[i].xs, players[i].ys):
-                if coord[0] == self.x-step_size and coord[1] == self.y:
-                    directions["left"] -= 20000
-                if coord[0] == self.x+step_size and coord[1] == self.y:
-                    directions["right"] -= 20000
-                if coord[0] == self.x and coord[1] == self.y-step_size:
-                    directions["up"] -= 20000
-                if coord[0] == self.x and coord[1] == self.y+step_size:
-                    directions["down"] -= 20000
-                if coord[0] == self.x-step_size and coord[1] == self.y-step_size:
-                    ul = True
-                if coord[0] == self.x-step_size and coord[1] == self.y+step_size:
-                    bl = True
-                if coord[0] == self.x+step_size and coord[1] == self.y-step_size:
-                    ur = True
-                if coord[0] == self.x+step_size and coord[1] == self.y+step_size:
-                    br = True
-                if coord[0] == self.x and coord[1] == self.y - 2 * step_size: up2 = True
-                if coord[0] == self.x and coord[1] == self.y + 2 * step_size: down2 = True
-                if coord[1] == self.y and coord[0] == self.x - 2 * step_size: left2 = True
-                if coord[1] == self.y and coord[0] == self.x + 2 * step_size: right2 = True
-        if ul and ur and up2: directions["up"] -= 20000
-        if ur and br and right2: directions["right"] -= 20000
-        if bl and br and down2: directions["down"] -= 20000
-        if bl and ul and left2: directions["left"] -= 20000
+        for direction in self._get_valid_directions(board, windowWidth, windowHeight):
+            directions[direction] = self._get_score(board, direction, players)
 
         # Try to cut other players off
-        for i in range(len(players)):
-            if players[i].direction == Direction.RIGHT and self.direction == Direction.RIGHT:
-                if self.x - players[i].x > abs(self.y - players[i].y):
-                    if self.y - players[i].y > 0: directions["up"] += 10000
-                    else: directions["down"] += 10000
-            if players[i].direction == Direction.LEFT and self.direction == Direction.LEFT:
-                if players[i].x - self.x > abs(self.y - players[i].y):
-                    if self.y - players[i].y > 0: directions["up"] += 10000
-                    else: directions["down"] += 10000
-            if players[i].direction == Direction.DOWN and self.direction == Direction.DOWN:
-                if self.y - players[i].y > abs(self.x - players[i].x):
-                    if self.x - players[i].x > 0: directions["left"] += 10000
-                    else: directions["right"] += 10000
-            if players[i].direction == Direction.UP and self.direction == Direction.UP:
-                if players[i].y - self.y > abs(self.x - players[i].x):
-                    if self.x - players[i].x > 0: directions["left"] += 10000
-                    else: directions["right"] += 10000
-            if self.direction == Direction.DOWN and players[i].direction == Direction.RIGHT and self.y - players[i].y < self.x - players[i].x and self.y - players[i].y > 0:
-                directions["down"] += 10000
-            if self.direction == Direction.DOWN and players[i].direction == Direction.LEFT and self.y - players[i].y < players[i].x - self.x and self.y - players[i].y > 0:
-                directions["down"] += 10000
-            if self.direction == Direction.RIGHT and players[i].direction == Direction.UP and players[i].x - self.x < self.y - players[i].y and players[i].x - self.x > 0:
-                directions["right"] += 10000
-            if self.direction == Direction.RIGHT and players[i].direction == Direction.DOWN and players[i].x - self.x < players[i].y - self.y and players[i].x - self.x > 0:
-                directions["right"] += 10000
-            if self.direction == Direction.UP and players[i].direction == Direction.RIGHT and players[i].y - self.y < players[i].x - self.x and players[i].y - self.y > 0:
-                directions["up"] += 10000
-            if self.direction == Direction.UP and players[i].direction == Direction.LEFT and players[i].y - self.y < self.x - players[i].x and players[i].y - self.y > 0:
-                directions["up"] += 10000
-            if self.direction == Direction.LEFT and players[i].direction == Direction.UP and self.x - players[i].x < players[i].y - self.y and self.x - players[i].x > 0:
-                directions["left"] += 10000
-            if self.direction == Direction.LEFT and players[i].direction == Direction.DOWN and self.x - players[i].x < self.y - players[i].y and self.x - players[i].x > 0:
-                directions["left"] += 10000
+        #  for i in range(len(players)):
+            #  if players[i].direction == Direction.RIGHT and self.direction == Direction.RIGHT:
+                #  if self.x - players[i].x > abs(self.y - players[i].y):
+                    #  if self.y - players[i].y > 0: directions["up"] += 10000
+                    #  else: directions["down"] += 10000
+            #  if players[i].direction == Direction.LEFT and self.direction == Direction.LEFT:
+                #  if players[i].x - self.x > abs(self.y - players[i].y):
+                    #  if self.y - players[i].y > 0: directions["up"] += 10000
+                    #  else: directions["down"] += 10000
+            #  if players[i].direction == Direction.DOWN and self.direction == Direction.DOWN:
+                #  if self.y - players[i].y > abs(self.x - players[i].x):
+                    #  if self.x - players[i].x > 0: directions["left"] += 10000
+                    #  else: directions["right"] += 10000
+            #  if players[i].direction == Direction.UP and self.direction == Direction.UP:
+                #  if players[i].y - self.y > abs(self.x - players[i].x):
+                    #  if self.x - players[i].x > 0: directions["left"] += 10000
+                    #  else: directions["right"] += 10000
+            #  if self.direction == Direction.DOWN and players[i].direction == Direction.RIGHT and self.y - players[i].y < self.x - players[i].x and self.y - players[i].y > 0:
+                #  directions["down"] += 10000
+            #  if self.direction == Direction.DOWN and players[i].direction == Direction.LEFT and self.y - players[i].y < players[i].x - self.x and self.y - players[i].y > 0:
+                #  directions["down"] += 10000
+            #  if self.direction == Direction.RIGHT and players[i].direction == Direction.UP and players[i].x - self.x < self.y - players[i].y and players[i].x - self.x > 0:
+                #  directions["right"] += 10000
+            #  if self.direction == Direction.RIGHT and players[i].direction == Direction.DOWN and players[i].x - self.x < players[i].y - self.y and players[i].x - self.x > 0:
+                #  directions["right"] += 10000
+            #  if self.direction == Direction.UP and players[i].direction == Direction.RIGHT and players[i].y - self.y < players[i].x - self.x and players[i].y - self.y > 0:
+                #  directions["up"] += 10000
+            #  if self.direction == Direction.UP and players[i].direction == Direction.LEFT and players[i].y - self.y < self.x - players[i].x and players[i].y - self.y > 0:
+                #  directions["up"] += 10000
+            #  if self.direction == Direction.LEFT and players[i].direction == Direction.UP and self.x - players[i].x < players[i].y - self.y and self.x - players[i].x > 0:
+                #  directions["left"] += 10000
+            #  if self.direction == Direction.LEFT and players[i].direction == Direction.DOWN and self.x - players[i].x < self.y - players[i].y and self.x - players[i].x > 0:
+                #  directions["left"] += 10000
 
-        best_direction = max(directions, key=directions.get)
-        if best_direction == "left": self.direction = Direction.LEFT
-        elif best_direction == "right": self.direction = Direction.RIGHT
-        elif best_direction == "up": self.direction = Direction.UP
-        elif best_direction == "down": self.direction = Direction.DOWN
+        f.write(str(directions) + "\n")
+        self.direction = max(directions, key=directions.get)
 
     def addBlock(self):
         self.xs.append(self.x)
@@ -304,6 +332,7 @@ class App:
         pygame.display.flip()
 
     def on_cleanup(self): 
+        f.close()
         pygame.quit()
 
     def on_reset(self):
@@ -393,26 +422,26 @@ class App:
 
             self.on_loop()
             self.on_render()
-            time.sleep(1/60)
+            time.sleep(1/80)
 
         self.on_cleanup()
 
     def set_twoplayer(self): 
-        player1 = Player(self.player_isbots[0], 20, int(self.windowHeight/2), Direction.RIGHT, self.player_colors[0])
-        player2 = Player(self.player_isbots[1], self.windowWidth - 40, int(self.windowHeight/2), Direction.LEFT, self.player_colors[1])
+        player1 = Player(self.player_isbots[0], 100, int(self.windowHeight/2), Direction.RIGHT, self.player_colors[0])
+        player2 = Player(self.player_isbots[1], self.windowWidth - 120, int(self.windowHeight/2), Direction.LEFT, self.player_colors[1])
         self.players = [player1, player2]
     def set_threeplayer(self): 
         self.n_players = 3
-        player1 = Player(self.player_isbots[0], 20, 500, Direction.RIGHT, self.player_colors[0])
-        player2 = Player(self.player_isbots[1], self.windowWidth - 40, 500, Direction.LEFT, self.player_colors[1])
-        player3 = Player(self.player_isbots[2], int(self.windowWidth/2), self.windowHeight - 40, Direction.UP, self.player_colors[2])
+        player1 = Player(self.player_isbots[0], 100, 500, Direction.RIGHT, self.player_colors[0])
+        player2 = Player(self.player_isbots[1], self.windowWidth - 120, 500, Direction.LEFT, self.player_colors[1])
+        player3 = Player(self.player_isbots[2], int(self.windowWidth/2), self.windowHeight - 120, Direction.UP, self.player_colors[2])
         self.players = [player1, player2, player3]
     def set_fourplayer(self): 
         self.n_players = 4
-        player1 = Player(self.player_isbots[0], 20, 500, Direction.RIGHT, self.player_colors[0])
-        player2 = Player(self.player_isbots[1], self.windowWidth - 40, 500, Direction.LEFT, self.player_colors[1])
-        player3 = Player(self.player_isbots[2], 20, 1100, Direction.RIGHT, self.player_colors[2])
-        player4 = Player(self.player_isbots[3], self.windowWidth - 40, 1100, Direction.LEFT, self.player_colors[3])
+        player1 = Player(self.player_isbots[0], 100, 500, Direction.RIGHT, self.player_colors[0])
+        player2 = Player(self.player_isbots[1], self.windowWidth - 120, 500, Direction.LEFT, self.player_colors[1])
+        player3 = Player(self.player_isbots[2], 100, 1100, Direction.RIGHT, self.player_colors[2])
+        player4 = Player(self.player_isbots[3], self.windowWidth - 120, 1100, Direction.LEFT, self.player_colors[3])
         self.players = [player1, player2, player3, player4]
    
     def toggle_player(self, player_number):
