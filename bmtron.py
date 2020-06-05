@@ -79,7 +79,7 @@ class Player:
         return valid_directions
 
     def _dfs_score(self, start, board):
-        visited = np.array(board, copy=True)
+        visited = np.full(board.shape, False)
         distance = np.full(board.shape, float("inf"))
         heap = []
         
@@ -87,14 +87,14 @@ class Player:
         node = (0, start)
         distance[start] = 0
         heapq.heappush(heap, node)
-        while not len(heap) == 0 and node[0] < 30: 
+        while not len(heap) == 0 and node[0] < 50: 
             node = heapq.heappop(heap)
             block = node[1]
             left = (block[0]-1, block[1])
             right = (block[0]+1, block[1])
             up = (block[0], block[1]-1)
             down = (block[0], block[1]+1)
-            if block[0] != 0 and not visited[left]:
+            if block[0] != 0 and not visited[left] and not board[left]:
                 if distance[left] == float("inf"):
                     distance[left] = distance[block] + 1
                     heapq.heappush(heap, (distance[left], left))
@@ -104,7 +104,7 @@ class Player:
                         if n[1] == left: 
                             n[0] = distance[block] + 1 
                             heapq.heapify(heap)
-            if block[0] != board.shape[0] - 1 and not visited[right]:
+            if block[0] != board.shape[0] - 1 and not visited[right] and not board[right]:
                 if distance[right] == float("inf"):
                     distance[right] = distance[block] + 1
                     heapq.heappush(heap, (distance[right], right))
@@ -114,7 +114,7 @@ class Player:
                         if n[1] == right: 
                             n[0] = distance[block] + 1 
                             heapq.heapify(heap)
-            if block[1] != 0 and not visited[up]:
+            if block[1] != 0 and not visited[up] and not board[up]:
                 if distance[up] == float("inf"):
                     distance[up] = distance[block] + 1
                     heapq.heappush(heap, (distance[up], up))
@@ -124,7 +124,7 @@ class Player:
                         if n[1] == up: 
                             n[0] = distance[block] + 1 
                             heapq.heapify(heap)
-            if block[1] != board.shape[1] - 1 and not visited[down]:
+            if block[1] != board.shape[1] - 1 and not visited[down] and not board[down]:
                 if distance[down] == float("inf"):
                     distance[down] = distance[down] + 1
                     heapq.heappush(heap, (distance[down], down))
@@ -137,29 +137,32 @@ class Player:
             visited[block] = True 
             score += 1
 
-        return np.count_nonzero(visited==True) 
+        return np.count_nonzero(visited==True)
 
     def _get_score(self, board, start, players):
         
         self_score = self._dfs_score(start, board)
-        f.write("self score: ")
-        f.write(str(self_score)+"\n")
+        #  f.write("self score: ")
+        #  f.write(str(self_score)+"\n")
 
-        player_scores = []
-        for player in players:
-            f.write("player: "+ str(player.x) + " " + str(player.y))
-            f.write("self: " + str(self.x) + " " + str(self.y))
-            if player.x != self.x:
-                player_scores.append(self._dfs_score(self._i(player.x, player.y), board))
+        #  player_scores = []
+        #  for player in players:
+            #  #  f.write("player: "+ str(player.x) + " " + str(player.y))
+            #  #  f.write("self: " + str(self.x) + " " + str(self.y) + "\n")
+            #  if player.x != self.x:
+                #  player_scores.append(self._dfs_score(self._i(player.x, player.y), board))
 
-        final_score = 0
-        for score in player_scores:
-            f.write("player score: ")
-            f.write(str(score) + "\n")
-            final_score += self_score / score
-        f.write("final score:") 
-        f.write(str(final_score) + "\n")
-        return final_score # SHOULD I ADD THE SELF_SCORE?
+        #  final_score = 0
+        #  for score in player_scores:
+            #  #  f.write("player score: ")
+            #  #  f.write(str(score) + "\n")
+            #  if score > 0:
+                #  final_score += self_score / score
+            #  if score == 0:
+                #  final_score += 1000
+        #  #  f.write("final score:") 
+        #  #  f.write(str(final_score) + "\n")
+        return self_score 
 
     def update(self, players, windowWidth, windowHeight):
         directions = {
@@ -184,45 +187,10 @@ class Player:
             board[start] = True
             directions[direction] = self._get_score(board, start, players)
             board[start] = False
-
-        # Try to cut other players off
-        #  for i in range(len(players)):
-            #  if players[i].direction == Direction.RIGHT and self.direction == Direction.RIGHT:
-                #  if self.x - players[i].x > abs(self.y - players[i].y):
-                    #  if self.y - players[i].y > 0: directions["up"] += 10000
-                    #  else: directions["down"] += 10000
-            #  if players[i].direction == Direction.LEFT and self.direction == Direction.LEFT:
-                #  if players[i].x - self.x > abs(self.y - players[i].y):
-                    #  if self.y - players[i].y > 0: directions["up"] += 10000
-                    #  else: directions["down"] += 10000
-            #  if players[i].direction == Direction.DOWN and self.direction == Direction.DOWN:
-                #  if self.y - players[i].y > abs(self.x - players[i].x):
-                    #  if self.x - players[i].x > 0: directions["left"] += 10000
-                    #  else: directions["right"] += 10000
-            #  if players[i].direction == Direction.UP and self.direction == Direction.UP:
-                #  if players[i].y - self.y > abs(self.x - players[i].x):
-                    #  if self.x - players[i].x > 0: directions["left"] += 10000
-                    #  else: directions["right"] += 10000
-            #  if self.direction == Direction.DOWN and players[i].direction == Direction.RIGHT and self.y - players[i].y < self.x - players[i].x and self.y - players[i].y > 0:
-                #  directions["down"] += 10000
-            #  if self.direction == Direction.DOWN and players[i].direction == Direction.LEFT and self.y - players[i].y < players[i].x - self.x and self.y - players[i].y > 0:
-                #  directions["down"] += 10000
-            #  if self.direction == Direction.RIGHT and players[i].direction == Direction.UP and players[i].x - self.x < self.y - players[i].y and players[i].x - self.x > 0:
-                #  directions["right"] += 10000
-            #  if self.direction == Direction.RIGHT and players[i].direction == Direction.DOWN and players[i].x - self.x < players[i].y - self.y and players[i].x - self.x > 0:
-                #  directions["right"] += 10000
-            #  if self.direction == Direction.UP and players[i].direction == Direction.RIGHT and players[i].y - self.y < players[i].x - self.x and players[i].y - self.y > 0:
-                #  directions["up"] += 10000
-            #  if self.direction == Direction.UP and players[i].direction == Direction.LEFT and players[i].y - self.y < self.x - players[i].x and players[i].y - self.y > 0:
-                #  directions["up"] += 10000
-            #  if self.direction == Direction.LEFT and players[i].direction == Direction.UP and self.x - players[i].x < players[i].y - self.y and self.x - players[i].x > 0:
-                #  directions["left"] += 10000
-            #  if self.direction == Direction.LEFT and players[i].direction == Direction.DOWN and self.x - players[i].x < self.y - players[i].y and self.x - players[i].x > 0:
-                #  directions["left"] += 10000
-
-        f.write(str(directions) + "\n")
+        
+        #  f.write(str(directions) + "\n")
         self.direction = max(directions, key=directions.get)
-        f.write(str(self.direction) + "\n")
+        #  f.write(str(self.direction) + "\n")
 
     def addBlock(self):
         self.xs.append(self.x)
@@ -272,7 +240,7 @@ class App:
         ERROR = auto()
 
     windowHeight = 1600
-    windowWidth = 3000
+    windowWidth = 2400
     n_players = 0
     players = []
     scores = []
@@ -300,7 +268,8 @@ class App:
         if self._state == self.State.PLAYING: 
             
             for i in range(self.n_players):
-                if self.players[i].is_bot: self.players[i].update(self.players, self.windowWidth, self.windowHeight)
+                if self.players[i].alive:
+                    if self.players[i].is_bot: self.players[i].update(self.players, self.windowWidth, self.windowHeight)
              
             for i in range(self.n_players):
                 if self.players[i].alive: 
@@ -311,22 +280,25 @@ class App:
                 if self.players[i].alive:
                     if self.players[i].x < 0 or self.players[i].y < 0 or self.players[i].y + step_size > self.windowHeight or self.players[i].x + step_size > self.windowWidth:
                         self.players[i].alive = False
-                        self.still_alive[i] = False
                 # collision detection: other snakes
                 for coord in zip(self.players[i].xs, self.players[i].ys):
                     for j in range(self.n_players):
                         if self.players[j].alive:
                             if coord == (self.players[j].x, self.players[j].y): 
                                 self.players[j].alive = False
-                                self.still_alive[j] = False
+                for j in range(self.n_players):
+                    if self.players[j].alive:
+                        if i != j and self.players[i].x == self.players[j].x and self.players[i].y == self.players[j].y:
+                            self.players[i].alive = False
+                            self.players[j].alive = False
 
             alive_count = self.n_players 
             for i in range(self.n_players):
-                if not self.still_alive[i]: alive_count -= 1
+                if not self.players[i].alive: alive_count -= 1
                 if alive_count < 2: self._state = self.State.ROUNDOVER
             if self._state == self.State.ROUNDOVER: 
                 for i in range(self.n_players):
-                    if self.still_alive[i]: self.scores[i] += 1
+                    if self.players[i].alive: self.scores[i] += 1
 
     def on_render(self):
         self._display_surf.fill(self.BLACK)
@@ -350,7 +322,6 @@ class App:
 
     def on_reset(self):
         self.players = []
-        self.still_alive = []
         
         if self.n_players < 2: 
             self._state = self.State.ERROR
@@ -363,7 +334,6 @@ class App:
             elif self.n_players == 4: 
                 self.set_fourplayer()
             if len(self.scores) == 0: self.scores = [0] * self.n_players
-            self.still_alive = [True] * self.n_players
             self._state = self.State.PLAYING
 
     def on_start_newgame(self):
@@ -385,7 +355,6 @@ class App:
         self.n_players = 0
         self.players = []
         self.scores = []
-        self.still_alive = []
         self.player_choices = ["ARROW KEYS", "WASD", "None", "None"]
         self.button_colors = [self.P1COLOR, self.P2COLOR, self.GREY, self.GREY]
         self.hover_colors = [self.P1HOVER, self.P2HOVER, self.GREYHOVER, self.GREYHOVER]
@@ -398,6 +367,7 @@ class App:
             self._running == False
 
         while self._running:
+            start = time.time()
             self.ev = pygame.event.get()
             for event in self.ev:
                 if event.type == QUIT:
@@ -435,33 +405,44 @@ class App:
 
             self.on_loop()
             self.on_render()
-            time.sleep(1/80)
+            end = time.time()
+            if end - start < 1/30: time.sleep(1/30 - end + start)
 
         self.on_cleanup()
 
     def set_twoplayer(self): 
-        player1 = Player(self.player_isbots[0], 100, int(self.windowHeight/2), Direction.RIGHT, self.player_colors[0])
-        player2 = Player(self.player_isbots[1], self.windowWidth - 120, int(self.windowHeight/2), Direction.LEFT, self.player_colors[1])
+        player1 = Player(self.player_isbots[0], 200, int(self.windowHeight/2), Direction.RIGHT, self.player_colors[0])
+        player2 = Player(self.player_isbots[1], self.windowWidth - 200, int(self.windowHeight/2), Direction.LEFT, self.player_colors[1])
         self.players = [player1, player2]
     def set_threeplayer(self): 
         self.n_players = 3
-        player1 = Player(self.player_isbots[0], 100, 500, Direction.RIGHT, self.player_colors[0])
-        player2 = Player(self.player_isbots[1], self.windowWidth - 120, 500, Direction.LEFT, self.player_colors[1])
+        player1 = Player(self.player_isbots[0], 200, 500, Direction.RIGHT, self.player_colors[0])
+        player2 = Player(self.player_isbots[1], self.windowWidth - 200, 500, Direction.LEFT, self.player_colors[1])
         player3 = Player(self.player_isbots[2], int(self.windowWidth/2), self.windowHeight - 120, Direction.UP, self.player_colors[2])
         self.players = [player1, player2, player3]
     def set_fourplayer(self): 
         self.n_players = 4
-        player1 = Player(self.player_isbots[0], 100, 500, Direction.RIGHT, self.player_colors[0])
-        player2 = Player(self.player_isbots[1], self.windowWidth - 120, 500, Direction.LEFT, self.player_colors[1])
-        player3 = Player(self.player_isbots[2], 100, 1100, Direction.RIGHT, self.player_colors[2])
-        player4 = Player(self.player_isbots[3], self.windowWidth - 120, 1100, Direction.LEFT, self.player_colors[3])
+        player1 = Player(self.player_isbots[0], 200, 500, Direction.RIGHT, self.player_colors[0])
+        player2 = Player(self.player_isbots[1], self.windowWidth - 200, 500, Direction.LEFT, self.player_colors[1])
+        player3 = Player(self.player_isbots[2], 200, 1100, Direction.RIGHT, self.player_colors[2])
+        player4 = Player(self.player_isbots[3], self.windowWidth - 200, 1100, Direction.LEFT, self.player_colors[3])
         self.players = [player1, player2, player3, player4]
    
     def toggle_player(self, player_number):
         if self.player_choices[player_number] == self.controls[player_number]: 
-            self.player_choices[player_number] = "BOT"
-            self.button_colors[player_number] = self.LIGHTGREY
-            self.hover_colors[player_number] = self.LIGHTGREYHOVER
+            has_bot = False # only one bot allowed because he's too slow
+            for i in range(len(self.player_choices)):
+                if self.player_choices[i] == "BOT": 
+                    has_bot = True
+                    break
+            if not has_bot:
+                self.player_choices[player_number] = "BOT"
+                self.button_colors[player_number] = self.LIGHTGREY
+                self.hover_colors[player_number] = self.LIGHTGREYHOVER
+            else:
+                self.player_choices[player_number] = "None"
+                self.button_colors[player_number] = self.GREY
+                self.hover_colors[player_number] = self.GREYHOVER
         elif self.player_choices[player_number] == "BOT":
             self.player_choices[player_number] = "None"
             self.button_colors[player_number] = self.GREY
@@ -472,7 +453,7 @@ class App:
             self.hover_colors[player_number] = self.PLAYER_HOVERS[player_number]
 
     def _draw_error(self):
-        font = pygame.font.Font(None, 250)
+        font = pygame.font.Font(None, 100)
         text = font.render(self._error_message, True, self.RED)
         text_rect = text.get_rect()
         self._display_surf.blit(text, [int(self.windowWidth / 2 - text_rect.width / 2), int(self.windowHeight / 2 - text_rect.height / 2)])
@@ -504,7 +485,7 @@ class App:
         winner_str = "Winner: " 
         for i in range(self.n_players):
             if i in range(self.n_players): 
-                if self.still_alive[i]: winner_str += "Player " + str(i + 1)
+                if self.players[i].alive: winner_str += "Player " + str(i + 1)
         if len(winner_str) == 8: winner_str += "nobody"
         font = pygame.font.Font(None, 300)
         winner_text = font.render(winner_str, True, self.LIMEGREEN)
