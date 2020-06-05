@@ -6,6 +6,8 @@ import time
 import numpy as np
 import heapq
 import os
+
+# LOG FILE
 if os.path.exists("new_log.txt"):
   os.remove("new_log.txt")
 f = open("new_log.txt", "a")
@@ -81,12 +83,11 @@ class Player:
         distance = np.full(board.shape, float("inf"))
         heap = []
         
-        visited[start] = True
         score = 0
         node = (0, start)
         distance[start] = 0
         heapq.heappush(heap, node)
-        while not len(heap) == 0 and node[0] < 20: 
+        while not len(heap) == 0 and node[0] < 30: 
             node = heapq.heappop(heap)
             block = node[1]
             left = (block[0]-1, block[1])
@@ -100,7 +101,9 @@ class Player:
                 elif distance[left] > distance[block] + 1:
                     distance[left] = distance[block] + 1
                     for n in heap:
-                        if n[1] == left: n[0] = distance[block] + 1 
+                        if n[1] == left: 
+                            n[0] = distance[block] + 1 
+                            heapq.heapify(heap)
             if block[0] != board.shape[0] - 1 and not visited[right]:
                 if distance[right] == float("inf"):
                     distance[right] = distance[block] + 1
@@ -108,7 +111,9 @@ class Player:
                 elif distance[right] > distance[block] + 1:
                     distance[right] = distance[block] + 1
                     for n in heap:
-                        if n[1] == right: n[0] = distance[block] + 1 
+                        if n[1] == right: 
+                            n[0] = distance[block] + 1 
+                            heapq.heapify(heap)
             if block[1] != 0 and not visited[up]:
                 if distance[up] == float("inf"):
                     distance[up] = distance[block] + 1
@@ -116,7 +121,9 @@ class Player:
                 elif distance[up] > distance[up] + 1:
                     distance[up] = distance[up] + 1
                     for n in heap:
-                        if n[1] == up: n[0] = distance[block] + 1 
+                        if n[1] == up: 
+                            n[0] = distance[block] + 1 
+                            heapq.heapify(heap)
             if block[1] != board.shape[1] - 1 and not visited[down]:
                 if distance[down] == float("inf"):
                     distance[down] = distance[down] + 1
@@ -124,34 +131,26 @@ class Player:
                 elif distance[down] > distance[block] + 1:
                     distance[down] = distance[block] + 1
                     for n in heap:
-                        if n[1] == down: n[0] = distance[block] + 1 
+                        if n[1] == down: 
+                            n[0] = distance[block] + 1 
+                            heapq.heapify(heap)
             visited[block] = True 
             score += 1
 
-        return score + len(heap)
+        return np.count_nonzero(visited==True) 
 
-    def _get_score(self, board, direction, players):
-        visited = np.array(board, copy=True)
-
-        start = self._i(self.x, self.y)
-        if direction == Direction.UP:
-            start = self._i(self.x, self.y-step_size)
-        elif direction == Direction.LEFT:
-            start = self._i(self.x-step_size, self.y)
-        elif direction == Direction.RIGHT:
-            start = self._i(self.x+step_size, self.y)
-        elif direction == Direction.DOWN:
-            start = self._i(self.x, self.y+step_size)
+    def _get_score(self, board, start, players):
         
         self_score = self._dfs_score(start, board)
         f.write("self score: ")
         f.write(str(self_score)+"\n")
 
-        visited[start] = True
         player_scores = []
         for player in players:
+            f.write("player: "+ str(player.x) + " " + str(player.y))
+            f.write("self: " + str(self.x) + " " + str(self.y))
             if player.x != self.x:
-                player_scores.append(self._dfs_score(self._i(player.x, player.y), visited))
+                player_scores.append(self._dfs_score(self._i(player.x, player.y), board))
 
         final_score = 0
         for score in player_scores:
@@ -173,7 +172,18 @@ class Player:
         board = self._get_board(players, windowWidth, windowHeight)
 
         for direction in self._get_valid_directions(board, windowWidth, windowHeight):
-            directions[direction] = self._get_score(board, direction, players)
+            start = self._i(self.x, self.y)
+            if direction == Direction.UP:
+                start = self._i(self.x, self.y-step_size)
+            elif direction == Direction.LEFT:
+                start = self._i(self.x-step_size, self.y)
+            elif direction == Direction.RIGHT:
+                start = self._i(self.x+step_size, self.y)
+            elif direction == Direction.DOWN:
+                start = self._i(self.x, self.y+step_size)
+            board[start] = True
+            directions[direction] = self._get_score(board, start, players)
+            board[start] = False
 
         # Try to cut other players off
         #  for i in range(len(players)):
@@ -212,6 +222,7 @@ class Player:
 
         f.write(str(directions) + "\n")
         self.direction = max(directions, key=directions.get)
+        f.write(str(self.direction) + "\n")
 
     def addBlock(self):
         self.xs.append(self.x)
@@ -289,10 +300,12 @@ class App:
         if self._state == self.State.PLAYING: 
             
             for i in range(self.n_players):
+                if self.players[i].is_bot: self.players[i].update(self.players, self.windowWidth, self.windowHeight)
+             
+            for i in range(self.n_players):
                 if self.players[i].alive: 
-                    if self.players[i].is_bot: self.players[i].update(self.players, self.windowWidth, self.windowHeight)
                     self.players[i].addBlock()
-            
+                    
             for i in range(self.n_players):
                 # collision detection: wall
                 if self.players[i].alive:
