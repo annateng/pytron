@@ -217,6 +217,7 @@ class App:
     DARKTEAL = (27,70,65)
     DARKTEALHOVER = (55,84,76)
     LIMEGREEN = (143,250,0)
+    LIMEGREENHOVER = (173,255,10)
     P1COLOR = (185,201,103)
     P1HOVER = (P1COLOR[0]-20, P1COLOR[1]-20, P1COLOR[2]-20)
     P2COLOR = (139,121,173)
@@ -239,8 +240,8 @@ class App:
         PLAYING = auto()
         ERROR = auto()
 
-    windowHeight = 1600
-    windowWidth = 2400
+    windowHeight = 1000
+    windowWidth = 1500
     n_players = 0
     players = []
     scores = []
@@ -462,24 +463,24 @@ class App:
         self.on_newgame()
 
     def _draw_newgame(self):
-        font = pygame.font.Font(None, 300)
+        font = pygame.font.Font(None, 100)
         text = font.render("New Game", True, self.LIMEGREEN)
         text_rect = text.get_rect()
-        text_x = int(self.windowWidth / 2 - text_rect.width / 2)
-        text_y = int(self.windowHeight / 2 - text_rect.height / 2 - 500)
+        text_x = 20
+        text_y = 20 
         self._display_surf.blit(text, [text_x, text_y])
         
-        font = pygame.font.Font(None, 100)
-        self._display_surf.blit(font.render("Player 1: ", True, self.YELLOW), [int(self.windowWidth / 2 - 500), 600])
-        self._display_surf.blit(font.render("Player 2: ", True, self.YELLOW), [int(self.windowWidth / 2 - 500), 750])
-        self._display_surf.blit(font.render("Player 3: ", True, self.YELLOW), [int(self.windowWidth / 2 - 500), 900])
-        self._display_surf.blit(font.render("Player 4: ", True, self.YELLOW), [int(self.windowWidth / 2 - 500), 1050])
+        font = pygame.font.Font(None, 70)
+        self._display_surf.blit(font.render("Player 1: ", True, self.WHITE), [20, 150])
+        self._display_surf.blit(font.render("Player 2: ", True, self.WHITE), [20, 225])
+        self._display_surf.blit(font.render("Player 3: ", True, self.WHITE), [20, 300])
+        self._display_surf.blit(font.render("Player 4: ", True, self.WHITE), [20, 375])
 
-        self._draw_button(self.player_choices[0], self.button_colors[0], self.hover_colors[0], lambda: self.toggle_player(0), int(self.windowWidth/2), 600, 400, 100)
-        self._draw_button(self.player_choices[1], self.button_colors[1], self.hover_colors[1], lambda: self.toggle_player(1), int(self.windowWidth/2), 750, 400, 100)
-        self._draw_button(self.player_choices[2], self.button_colors[2], self.hover_colors[2], lambda: self.toggle_player(2), int(self.windowWidth/2), 900, 400, 100)
-        self._draw_button(self.player_choices[3], self.button_colors[3], self.hover_colors[3], lambda: self.toggle_player(3), int(self.windowWidth/2), 1050, 400, 100)
-        self._draw_button("START", self.DARKTEAL, self.DARKTEALHOVER, self.on_start_newgame, y=1300, fontsize=200)
+        self._draw_button(self.player_choices[0], self.button_colors[0], self.hover_colors[0], lambda: self.toggle_player(0), 250, 150, 300, 70)
+        self._draw_button(self.player_choices[1], self.button_colors[1], self.hover_colors[1], lambda: self.toggle_player(1), 250, 225, 300, 70)
+        self._draw_button(self.player_choices[2], self.button_colors[2], self.hover_colors[2], lambda: self.toggle_player(2), 250, 300, 300, 70)
+        self._draw_button(self.player_choices[3], self.button_colors[3], self.hover_colors[3], lambda: self.toggle_player(3), 250, 375, 300, 70)
+        self._draw_button("START", self.LIMEGREEN, self.LIMEGREENHOVER, self.on_start_newgame, x=20, y=550, fontsize=100)
 
     def _draw_gameover(self):
         winner_str = "Winner: " 
@@ -487,7 +488,7 @@ class App:
             if i in range(self.n_players): 
                 if self.players[i].alive: winner_str += "Player " + str(i + 1)
         if len(winner_str) == 8: winner_str += "nobody"
-        font = pygame.font.Font(None, 300)
+        font = pygame.font.Font(None, 150)
         winner_text = font.render(winner_str, True, self.LIMEGREEN)
         winner_rect = winner_text.get_rect()
         pygame.draw.rect(self._display_surf, self.BLACK, (int(self.windowWidth / 2 - winner_rect.width / 2 - 120), int(100 - winner_rect.height / 2), winner_rect.width + 240, winner_rect.height + 100))
