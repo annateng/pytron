@@ -7,6 +7,10 @@ class Direction(Enum):
     DOWN = auto()
 
 step_size = 20
+
+# function for indexing positions
+def ind(x, y):
+    return (int(x/step_size), int(y/step_size))
    
 # COLOR CONSTANTS
 BLACK = (0,0,0)

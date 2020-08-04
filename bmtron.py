@@ -3,8 +3,9 @@ from pygame.locals import *
 import pygame
 import time
 import os
+import numpy as np
 
-from constants import *
+from common import *
 from player import Player
 
 # LOG FILE
@@ -37,6 +38,7 @@ class App:
     player_colors = []
     player_isbots = []
     player_controlcodes = []
+    board = None
 
     def __init__(self):
         pass
@@ -153,6 +155,7 @@ class App:
         self.player_colors = []
         self.player_isbots = []
         self.player_controlcodes = []
+        self.board = np.full((int(windowWidth/step_size), int(windowHeight/step_size)), False)
 
     def on_execute(self):
         if self.on_init() == False:
