@@ -138,7 +138,7 @@ class Player:
         self_score = self._dfs_score(start, board)
         return self_score 
 
-    def update(self, players, windowWidth, windowHeight):
+    def update(self, board, players, windowWidth, windowHeight):
         # do nothing if player is human
         if not self.is_bot:
             return 
@@ -151,7 +151,7 @@ class Player:
             Direction.DOWN: -1000 
         }
         
-        board = self._get_board(players, windowWidth, windowHeight)
+        #  board = self._get_board(players, windowWidth, windowHeight)
 
         for direction in self._get_valid_directions(board, windowWidth, windowHeight):
             start = None

@@ -53,10 +53,14 @@ class App:
     def on_loop(self):
         if self._state == self.State.PLAYING: 
             
+            # update the board
+            for player in self.players:
+                self.board[ind(player.x, player.y)] = True
+
             # bots choose their next move
             for i in range(self.n_players):
                 if self.players[i].alive:
-                    if self.players[i].is_bot: self.players[i].update(self.players, self.windowWidth, self.windowHeight)
+                    self.players[i].update(self.board, self.players, self.windowWidth, self.windowHeight)
              
             # add next block for each player
             for i in range(self.n_players):
@@ -114,8 +118,10 @@ class App:
         # f.close()
         pygame.quit()
 
-    def on_reset(self):
+    # sequence for starting a new round
+    def on_new_round(self):
         self.players = []
+        self.board = np.full((int(self.windowWidth/step_size), int(self.windowHeight/step_size)), False)
         
         if self.n_players < 2: 
             self._state = self.State.ERROR
@@ -130,6 +136,7 @@ class App:
             if len(self.scores) == 0: self.scores = [0] * self.n_players
             self._state = self.State.PLAYING
 
+    # sequence for starting new game, after player clicks start
     def on_start_newgame(self):
         for i in range(len(self.player_choices)):
             if self.player_choices[i] == self.controls[i]:
@@ -142,8 +149,9 @@ class App:
                 self.player_colors.append(self.button_colors[i])
                 self.player_isbots.append(True)
                 self.player_controlcodes.append(-1)
-        self.on_reset()
+        self.on_new_round()
 
+    # Sequence for setting up a new game, before the initial options screen
     def on_newgame(self):
         self._state = self.State.NEWGAME
         self.n_players = 0
@@ -155,12 +163,12 @@ class App:
         self.player_colors = []
         self.player_isbots = []
         self.player_controlcodes = []
-        self.board = np.full((int(windowWidth/step_size), int(windowHeight/step_size)), False)
 
     def on_execute(self):
         if self.on_init() == False:
             self._running == False
 
+        # MAIN GAME LOOP
         while self._running:
             start = time.time()
             self._ev = pygame.event.get()
@@ -298,7 +306,7 @@ class App:
         pygame.draw.rect(self._display_surf, BLACK, (int(self.windowWidth / 2 - score_rect.width / 2 - 60), int(360 - score_rect.height / 2), score_rect.width + 120, score_rect.height + 40))
         self._display_surf.blit(score_text, [int(self.windowWidth / 2 - score_text.get_rect().width / 2), 360])
         
-        self._draw_button("Play Again", DARKTEAL, DARKTEALHOVER, self.on_reset, y=int(self.windowHeight / 2 + 100), fontsize=100)
+        self._draw_button("Play Again", DARKTEAL, DARKTEALHOVER, self.on_new_round, y=int(self.windowHeight / 2 + 100), fontsize=100)
         self._draw_button("Exit", DARKRED, DARKREDHOVER, self.on_newgame, y=int(self.windowHeight / 2 + 250), fontsize=100)
 
     def _draw_button(self, msg, init_color, hover_color, action, x=-1, y=-1, w=-1, h=-1, fontsize=40, fontcolor=(255,255,255)):
