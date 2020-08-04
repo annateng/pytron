@@ -42,35 +42,23 @@ class Player:
             self.y = self.y + step_size
 
     ## Start BOT methods #####################################################################################################
-    # create matrix representing current game - true means space is occupied
-    def _get_board(self, players, windowWidth, windowHeight):
-        board = np.full((int(windowWidth/step_size), int(windowHeight/step_size)), False)
-        for player in players:
-            (xNext, yNext) = self._get_next(player, windowWidth, windowHeight) 
-            xs = player.xs + xNext
-            ys = player.ys + yNext
-            for coord in zip(xs, ys):
-                board[ind(coord[0], coord[1])] = True
-        return board
-
     def _get_next(self, player, windowWidth, windowHeight):
-        # assume player (except self) continues a step in the same direction, to prevent head on collisions and ties
-        xNext = [player.x,]
-        yNext = [player.y,]
+        # assume player (except self) continues a step in each direction, to prevent head on collisions and ties
+        ns = []
         if player.x != self.x:
-            if player.direction == Direction.RIGHT:
-                xNext.append(min(player.x + step_size, windowWidth - step_size))
-                yNext.append(player.y)
-            elif player.direction == Direction.LEFT:
-                xNext.append(max(player.x - step_size, 0))
-                yNext.append(player.y)
-            elif player.direction == Direction.UP:
-                xNext.append(player.x)
-                yNext.append(max(player.y - step_size, 0))
-            else: # player.direction == Direction.DOWN
-                xNext.append(player.x)
-                yNext.append(min(player.y + step_size, windowHeight - step_size))
-        return (xNext, yNext)
+            #  if player.direction == Direction.RIGHT:
+            ns.append([min(player.x + step_size, windowWidth - step_size), player.y])
+            #  yNext.append(player.y)
+            #  elif player.direction == Direction.LEFT:
+            ns.append([max(player.x - step_size, 0), player.y])
+            #  yNext.append(player.y)
+            #  elif player.direction == Direction.UP:
+            ns.append([player.x, max(player.y - step_size, 0)])
+            #  yNext.append(max(player.y - step_size, 0))
+            #  else: # player.direction == Direction.DOWN
+            #  xNext.append(player.x)
+            ns.append([player.x, min(player.y + step_size, windowHeight - step_size)])
+        return ns
         
     # return each direction bot can go in without killing himself immediately
     def _get_valid_directions(self, board, windowWidth, windowHeight):
@@ -99,37 +87,54 @@ class Player:
             node = stack.popleft()
             dist = node[0]
             block = node[1]
+            #  f.write(",".join(map(str, block)) + "\n")
+            #  f.write(str(board.shape) + "\n")
             
             left = (block[0]-1, block[1])
             right = (block[0]+1, block[1])
             up = (block[0], block[1]-1)
             down = (block[0], block[1]+1)
 
+            #  f.write(",".join(map(str, left)) + " ")
+            #  f.write(",".join(map(str, right)) + " ")
+            #  f.write(",".join(map(str, up)) + " ")
+            #  f.write(",".join(map(str, down)) + "\n")
             numChoices = 0
-            if block[0] != 0 and not visited[left] and not board[left]:
-                visited[left] = True
+            if block[0] != 0 and not board[left]:
                 numChoices += 1
-                score += 1
-                stack.append((dist+1, left))
+                #  f.write("left ok\n")
+                if not visited[left]:
+                    visited[left] = True
+                    score += 1
+                    stack.append((dist+1, left))
                 
-            if block[0] != board.shape[0] - 1 and not visited[right] and not board[right]:
-                visited[right] = True
+            if block[0] != board.shape[0] - 1 and not board[right]:
                 numChoices += 1
-                score += 1
-                stack.append((dist+1, right))
+                #  f.write("right ok\n")
+                if not visited[right]:
+                    visited[right] = True
+                    score += 1
+                    stack.append((dist+1, right))
             
-            if block[1] != 0 and not visited[up] and not board[up]:
-                visited[up] = True
+            if block[1] != 0 and not board[up]:
                 numChoices += 1
-                score += 1
-                stack.append((dist+1, up))
+                #  f.write("up ok\n")
+                if not visited[up]:
+                    visited[up] = True
+                    score += 1
+                    stack.append((dist+1, up))
 
-            if block[1] != board.shape[1] - 1 and not visited[down] and not board[down]:
-                visited[down] = True
+            if block[1] != board.shape[1] - 1 and not board[down]:
                 numChoices += 1
-                score += 1
-                stack.append((dist+1, down))
-            score += numChoices - 1
+                #  f.write("down ok\n")
+                if not visited[down]:
+                    visited[down] = True
+                    score += 1
+                    stack.append((dist+1, down))
+            # discourage going down one lane paths (no escape)
+            if numChoices < 2: 
+                score -= 5
+            f.write(str(numChoices) + "\n")
 
         return score 
 
@@ -150,9 +155,19 @@ class Player:
             Direction.UP: -1000,
             Direction.DOWN: -1000 
         }
-        
-        #  board = self._get_board(players, windowWidth, windowHeight)
 
+        # assume all players (except self) continue one step in each direction to avoid head-on collisions
+        coords = []
+        old = []
+        for player in players:
+            ns = self._get_next(player, windowWidth, windowHeight)
+            for n in ns:
+                i = ind(n[0], n[1])
+                old.append(board[i]) # keep track of what board used to be so we can set it back
+                coords.append(i)
+        for coord in coords:
+            board[coord] = True
+        
         for direction in self._get_valid_directions(board, windowWidth, windowHeight):
             start = None
             if direction == Direction.UP:
@@ -172,5 +187,12 @@ class Player:
             directions[direction] = selfScore
             board[start] = False
         
+        # set board back
+        for j in range(len(coords)):
+            board[coords[j]] = old[j]
+
+        #  f.write(str(directions) + "\n")
+        #  print(str(directions))
         self.direction = max(directions, key=directions.get)
+
 

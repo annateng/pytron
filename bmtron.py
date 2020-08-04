@@ -115,7 +115,7 @@ class App:
         pygame.display.flip()
 
     def on_cleanup(self): 
-        # f.close()
+        f.close()
         pygame.quit()
 
     # sequence for starting a new round
