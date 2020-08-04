@@ -1,236 +1,19 @@
 from collections import deque
 from pygame.locals import *
-from enum import Enum, auto
 import pygame
 import time
-import numpy as np
-import heapq
 import os
 
+from constants import *
+from player import Player
+
 # LOG FILE
-if os.path.exists("new_log.txt"):
-  os.remove("new_log.txt")
-f = open("new_log.txt", "a")
-
-class Direction(Enum):
-    LEFT = auto()
-    RIGHT = auto()
-    UP = auto()
-    DOWN = auto()
-
-step_size = 20
-   
-class Player:
-    x = 20
-    y = 20 
-    xs = []
-    ys = [] 
-    color = (255,255,255)
-    alive = True
-    is_bot = False
-
-    def __init__(self, is_bot, x_start=20, y_start=20, start_direction=Direction.RIGHT, color=(255,255,255)):
-        self._X_START = x_start
-        self._Y_START = y_start
-        self._START_DIRECTION = start_direction
-        self.direction = start_direction
-
-        self.x = x_start
-        self.y = y_start
-        self.xs = []
-        self.ys = []
-        self.color = color
-        self.is_bot = is_bot
-
-    def moveRight(self):
-        self.direction = Direction.RIGHT
-
-    def moveLeft(self):
-        self.direction = Direction.LEFT
-
-    def moveUp(self):
-        self.direction = Direction.UP
-
-    def moveDown(self):
-        self.direction = Direction.DOWN
-        
-    def _i(self, x, y):
-        return (int(x/step_size), int(y/step_size))
-
-    def _get_board(self, players, windowWidth, windowHeight):
-        board = np.full((int(windowWidth/step_size), int(windowHeight/step_size)), False)
-        for player in players:
-            xs = player.xs + [player.x,]
-            ys = player.ys + [player.y,]
-            for coord in zip(xs, ys):
-                board[self._i(coord[0], coord[1])] = True
-        return board
-
-    def _get_valid_directions(self, board, windowWidth, windowHeight):
-        valid_directions = []
-        if self.x != 0 and not board[self._i(self.x-step_size, self.y)]: 
-            valid_directions.append(Direction.LEFT)
-        if self.x+step_size != windowWidth and not board[self._i(self.x+step_size, self.y)]:
-            valid_directions.append(Direction.RIGHT)
-        if self.y != 0 and not board[self._i(self.x, self.y-step_size)]:
-            valid_directions.append(Direction.UP)
-        if self.y+step_size != windowHeight and not board[self._i(self.x, self.y+step_size)]:
-            valid_directions.append(Direction.DOWN)
-        return valid_directions
-
-    def _dfs_score(self, start, board):
-        visited = np.full(board.shape, False)
-        distance = np.full(board.shape, float("inf"))
-        heap = []
-        
-        score = 0
-        node = (0, start)
-        distance[start] = 0
-        heapq.heappush(heap, node)
-        while not len(heap) == 0 and node[0] < 50: 
-            node = heapq.heappop(heap)
-            block = node[1]
-            left = (block[0]-1, block[1])
-            right = (block[0]+1, block[1])
-            up = (block[0], block[1]-1)
-            down = (block[0], block[1]+1)
-            if block[0] != 0 and not visited[left] and not board[left]:
-                if distance[left] == float("inf"):
-                    distance[left] = distance[block] + 1
-                    heapq.heappush(heap, (distance[left], left))
-                elif distance[left] > distance[block] + 1:
-                    distance[left] = distance[block] + 1
-                    for n in heap:
-                        if n[1] == left: 
-                            n[0] = distance[block] + 1 
-                            heapq.heapify(heap)
-            if block[0] != board.shape[0] - 1 and not visited[right] and not board[right]:
-                if distance[right] == float("inf"):
-                    distance[right] = distance[block] + 1
-                    heapq.heappush(heap, (distance[right], right))
-                elif distance[right] > distance[block] + 1:
-                    distance[right] = distance[block] + 1
-                    for n in heap:
-                        if n[1] == right: 
-                            n[0] = distance[block] + 1 
-                            heapq.heapify(heap)
-            if block[1] != 0 and not visited[up] and not board[up]:
-                if distance[up] == float("inf"):
-                    distance[up] = distance[block] + 1
-                    heapq.heappush(heap, (distance[up], up))
-                elif distance[up] > distance[up] + 1:
-                    distance[up] = distance[up] + 1
-                    for n in heap:
-                        if n[1] == up: 
-                            n[0] = distance[block] + 1 
-                            heapq.heapify(heap)
-            if block[1] != board.shape[1] - 1 and not visited[down] and not board[down]:
-                if distance[down] == float("inf"):
-                    distance[down] = distance[down] + 1
-                    heapq.heappush(heap, (distance[down], down))
-                elif distance[down] > distance[block] + 1:
-                    distance[down] = distance[block] + 1
-                    for n in heap:
-                        if n[1] == down: 
-                            n[0] = distance[block] + 1 
-                            heapq.heapify(heap)
-            visited[block] = True 
-            score += 1
-
-        return np.count_nonzero(visited==True)
-
-    def _get_score(self, board, start, players):
-        
-        self_score = self._dfs_score(start, board)
-        #  f.write("self score: ")
-        #  f.write(str(self_score)+"\n")
-
-        #  player_scores = []
-        #  for player in players:
-            #  #  f.write("player: "+ str(player.x) + " " + str(player.y))
-            #  #  f.write("self: " + str(self.x) + " " + str(self.y) + "\n")
-            #  if player.x != self.x:
-                #  player_scores.append(self._dfs_score(self._i(player.x, player.y), board))
-
-        #  final_score = 0
-        #  for score in player_scores:
-            #  #  f.write("player score: ")
-            #  #  f.write(str(score) + "\n")
-            #  if score > 0:
-                #  final_score += self_score / score
-            #  if score == 0:
-                #  final_score += 1000
-        #  #  f.write("final score:") 
-        #  #  f.write(str(final_score) + "\n")
-        return self_score 
-
-    def update(self, players, windowWidth, windowHeight):
-        directions = {
-            Direction.LEFT: -1000,
-            Direction.RIGHT: -1000,
-            Direction.UP: -1000,
-            Direction.DOWN: -1000 
-        }
-        
-        board = self._get_board(players, windowWidth, windowHeight)
-
-        for direction in self._get_valid_directions(board, windowWidth, windowHeight):
-            start = self._i(self.x, self.y)
-            if direction == Direction.UP:
-                start = self._i(self.x, self.y-step_size)
-            elif direction == Direction.LEFT:
-                start = self._i(self.x-step_size, self.y)
-            elif direction == Direction.RIGHT:
-                start = self._i(self.x+step_size, self.y)
-            elif direction == Direction.DOWN:
-                start = self._i(self.x, self.y+step_size)
-            board[start] = True
-            directions[direction] = self._get_score(board, start, players)
-            board[start] = False
-        
-        #  f.write(str(directions) + "\n")
-        self.direction = max(directions, key=directions.get)
-        #  f.write(str(self.direction) + "\n")
-
-    def addBlock(self):
-        self.xs.append(self.x)
-        self.ys.append(self.y)
-        if self.direction == Direction.RIGHT:
-            self.x = self.x + step_size
-        if self.direction == Direction.LEFT:
-            self.x = self.x - step_size
-        if self.direction == Direction.UP:
-            self.y = self.y - step_size
-        if self.direction == Direction.DOWN:
-            self.y = self.y + step_size
-
+#  if os.path.exists("new_log.txt"):
+  #  os.remove("new_log.txt")
+#  f = open("new_log.txt", "a")
 
 class App:
 
-    # COLOR CONSTANTS
-    BLACK = (0,0,0)
-    YELLOW = (255,255,150)
-    WHITE = (255,255,255)
-    DARKRED = (153,0,76)
-    DARKREDHOVER = (169,0,102)
-    RED = (255,0,0)
-    DARKTEAL = (27,70,65)
-    DARKTEALHOVER = (55,84,76)
-    LIMEGREEN = (143,250,0)
-    LIMEGREENHOVER = (173,255,10)
-    P1COLOR = (185,201,103)
-    P1HOVER = (P1COLOR[0]-20, P1COLOR[1]-20, P1COLOR[2]-20)
-    P2COLOR = (139,121,173)
-    P2HOVER = (P2COLOR[0]-20, P2COLOR[1]-20, P2COLOR[2]-20)
-    P3COLOR = (214,149,103)
-    P3HOVER = (P3COLOR[0]-20, P3COLOR[1]-20, P3COLOR[2]-20)
-    P4COLOR = (217,121,160)
-    P4HOVER = (P4COLOR[0]-20, P4COLOR[1]-20, P4COLOR[2]-20)
-    GREEN = (69,111,298)
-    LIGHTGREY = (150,150,150)
-    LIGHTGREYHOVER = (LIGHTGREY[0]-20, LIGHTGREY[1]-20, LIGHTGREY[2]-20)
-    GREY = (80,80,80)
-    GREYHOVER = (60,60,60)
     PLAYER_COLORS = [P1COLOR, P2COLOR, P3COLOR, P4COLOR]
     PLAYER_HOVERS = [P1HOVER, P2HOVER, P3HOVER, P4HOVER] 
 
@@ -240,8 +23,8 @@ class App:
         PLAYING = auto()
         ERROR = auto()
 
-    windowHeight = 1000
-    windowWidth = 1500
+    windowHeight = 800
+    windowWidth = 1200
     n_players = 0
     players = []
     scores = []
@@ -262,16 +45,18 @@ class App:
         pygame.init()
         self._display_surf = pygame.display.set_mode((self.windowWidth, self.windowHeight), pygame.HWSURFACE)
         self._running = True
-        self.ev = pygame.event.get()
+        self._ev = pygame.event.get()
         self.on_newgame()
 
     def on_loop(self):
         if self._state == self.State.PLAYING: 
             
+            # bots choose their next move
             for i in range(self.n_players):
                 if self.players[i].alive:
                     if self.players[i].is_bot: self.players[i].update(self.players, self.windowWidth, self.windowHeight)
              
+            # add next block for each player
             for i in range(self.n_players):
                 if self.players[i].alive: 
                     self.players[i].addBlock()
@@ -282,27 +67,31 @@ class App:
                     if self.players[i].x < 0 or self.players[i].y < 0 or self.players[i].y + step_size > self.windowHeight or self.players[i].x + step_size > self.windowWidth:
                         self.players[i].alive = False
                 # collision detection: other snakes
+                # 1. check if player i's tail collides with any player's head
                 for coord in zip(self.players[i].xs, self.players[i].ys):
                     for j in range(self.n_players):
                         if self.players[j].alive:
                             if coord == (self.players[j].x, self.players[j].y): 
                                 self.players[j].alive = False
+                # 2: check if any players heads collide with eachother
                 for j in range(self.n_players):
                     if self.players[j].alive:
                         if i != j and self.players[i].x == self.players[j].x and self.players[i].y == self.players[j].y:
                             self.players[i].alive = False
                             self.players[j].alive = False
 
+            # calculate whether there's a winner yet
             alive_count = self.n_players 
             for i in range(self.n_players):
                 if not self.players[i].alive: alive_count -= 1
                 if alive_count < 2: self._state = self.State.ROUNDOVER
+            # add one point to the winning player
             if self._state == self.State.ROUNDOVER: 
                 for i in range(self.n_players):
                     if self.players[i].alive: self.scores[i] += 1
 
     def on_render(self):
-        self._display_surf.fill(self.BLACK)
+        self._display_surf.fill(BLACK)
         
         if self._state == self.State.NEWGAME:  
             self._draw_newgame()
@@ -310,15 +99,17 @@ class App:
             self._draw_error()
         else:
             for player in self.players:
+                # draw tail
                 for coord in zip(player.xs, player.ys):
                     pygame.draw.rect(self._display_surf, player.color, (coord[0], coord[1], step_size, step_size), 0)
+                # draw head
                 pygame.draw.rect(self._display_surf, player.color, (player.x, player.y, step_size, step_size), 0)
 
         if self._state == self.State.ROUNDOVER: self._draw_gameover()
         pygame.display.flip()
 
     def on_cleanup(self): 
-        f.close()
+        # f.close()
         pygame.quit()
 
     def on_reset(self):
@@ -357,8 +148,8 @@ class App:
         self.players = []
         self.scores = []
         self.player_choices = ["ARROW KEYS", "WASD", "None", "None"]
-        self.button_colors = [self.P1COLOR, self.P2COLOR, self.GREY, self.GREY]
-        self.hover_colors = [self.P1HOVER, self.P2HOVER, self.GREYHOVER, self.GREYHOVER]
+        self.button_colors = [P1COLOR, P2COLOR, GREY, GREY]
+        self.hover_colors = [P1HOVER, P2HOVER, GREYHOVER, GREYHOVER]
         self.player_colors = []
         self.player_isbots = []
         self.player_controlcodes = []
@@ -369,8 +160,8 @@ class App:
 
         while self._running:
             start = time.time()
-            self.ev = pygame.event.get()
-            for event in self.ev:
+            self._ev = pygame.event.get()
+            for event in self._ev:
                 if event.type == QUIT:
                     self._running = False
             
@@ -407,7 +198,8 @@ class App:
             self.on_loop()
             self.on_render()
             end = time.time()
-            if end - start < 1/30: time.sleep(1/30 - end + start)
+            # maintain constant frame rate
+            if end - start < 1/20: time.sleep(1/20 - end + start)
 
         self.on_cleanup()
 
@@ -438,16 +230,16 @@ class App:
                     break
             if not has_bot:
                 self.player_choices[player_number] = "BOT"
-                self.button_colors[player_number] = self.LIGHTGREY
-                self.hover_colors[player_number] = self.LIGHTGREYHOVER
+                self.button_colors[player_number] = LIGHTGREY
+                self.hover_colors[player_number] = LIGHTGREYHOVER
             else:
                 self.player_choices[player_number] = "None"
-                self.button_colors[player_number] = self.GREY
-                self.hover_colors[player_number] = self.GREYHOVER
+                self.button_colors[player_number] = GREY
+                self.hover_colors[player_number] = GREYHOVER
         elif self.player_choices[player_number] == "BOT":
             self.player_choices[player_number] = "None"
-            self.button_colors[player_number] = self.GREY
-            self.hover_colors[player_number] = self.GREYHOVER
+            self.button_colors[player_number] = GREY
+            self.hover_colors[player_number] = GREYHOVER
         elif self.player_choices[player_number] == "None":
             self.player_choices[player_number] = self.controls[player_number]
             self.button_colors[player_number] = self.PLAYER_COLORS[player_number]
@@ -455,7 +247,7 @@ class App:
 
     def _draw_error(self):
         font = pygame.font.Font(None, 100)
-        text = font.render(self._error_message, True, self.RED)
+        text = font.render(self._error_message, True, RED)
         text_rect = text.get_rect()
         self._display_surf.blit(text, [int(self.windowWidth / 2 - text_rect.width / 2), int(self.windowHeight / 2 - text_rect.height / 2)])
         pygame.display.flip()
@@ -464,23 +256,23 @@ class App:
 
     def _draw_newgame(self):
         font = pygame.font.Font(None, 100)
-        text = font.render("New Game", True, self.LIMEGREEN)
+        text = font.render("New Game", True, LIMEGREEN)
         text_rect = text.get_rect()
         text_x = 20
         text_y = 20 
         self._display_surf.blit(text, [text_x, text_y])
         
         font = pygame.font.Font(None, 70)
-        self._display_surf.blit(font.render("Player 1: ", True, self.WHITE), [20, 150])
-        self._display_surf.blit(font.render("Player 2: ", True, self.WHITE), [20, 225])
-        self._display_surf.blit(font.render("Player 3: ", True, self.WHITE), [20, 300])
-        self._display_surf.blit(font.render("Player 4: ", True, self.WHITE), [20, 375])
+        self._display_surf.blit(font.render("Player 1: ", True, WHITE), [20, 150])
+        self._display_surf.blit(font.render("Player 2: ", True, WHITE), [20, 225])
+        self._display_surf.blit(font.render("Player 3: ", True, WHITE), [20, 300])
+        self._display_surf.blit(font.render("Player 4: ", True, WHITE), [20, 375])
 
         self._draw_button(self.player_choices[0], self.button_colors[0], self.hover_colors[0], lambda: self.toggle_player(0), 250, 150, 300, 70)
         self._draw_button(self.player_choices[1], self.button_colors[1], self.hover_colors[1], lambda: self.toggle_player(1), 250, 225, 300, 70)
         self._draw_button(self.player_choices[2], self.button_colors[2], self.hover_colors[2], lambda: self.toggle_player(2), 250, 300, 300, 70)
         self._draw_button(self.player_choices[3], self.button_colors[3], self.hover_colors[3], lambda: self.toggle_player(3), 250, 375, 300, 70)
-        self._draw_button("START", self.LIMEGREEN, self.LIMEGREENHOVER, self.on_start_newgame, x=20, y=550, fontsize=100)
+        self._draw_button("START", LIMEGREEN, LIMEGREENHOVER, self.on_start_newgame, x=20, y=550, fontsize=100)
 
     def _draw_gameover(self):
         winner_str = "Winner: " 
@@ -489,22 +281,22 @@ class App:
                 if self.players[i].alive: winner_str += "Player " + str(i + 1)
         if len(winner_str) == 8: winner_str += "nobody"
         font = pygame.font.Font(None, 150)
-        winner_text = font.render(winner_str, True, self.LIMEGREEN)
+        winner_text = font.render(winner_str, True, LIMEGREEN)
         winner_rect = winner_text.get_rect()
-        pygame.draw.rect(self._display_surf, self.BLACK, (int(self.windowWidth / 2 - winner_rect.width / 2 - 120), int(100 - winner_rect.height / 2), winner_rect.width + 240, winner_rect.height + 100))
+        pygame.draw.rect(self._display_surf, BLACK, (int(self.windowWidth / 2 - winner_rect.width / 2 - 120), int(100 - winner_rect.height / 2), winner_rect.width + 240, winner_rect.height + 100))
         self._display_surf.blit(winner_text, [int(self.windowWidth / 2 - winner_text.get_rect().width / 2), 100])
 
         score_str = ""
         font = pygame.font.Font(None, 75)
         for i in range(self.n_players):
             score_str += "Player " + str(i + 1) + ": " + str(self.scores[i]) + "      "
-        score_text = font.render(score_str, True, self.WHITE)
+        score_text = font.render(score_str, True, WHITE)
         score_rect = score_text.get_rect()
-        pygame.draw.rect(self._display_surf, self.BLACK, (int(self.windowWidth / 2 - score_rect.width / 2 - 60), int(360 - score_rect.height / 2), score_rect.width + 120, score_rect.height + 40))
+        pygame.draw.rect(self._display_surf, BLACK, (int(self.windowWidth / 2 - score_rect.width / 2 - 60), int(360 - score_rect.height / 2), score_rect.width + 120, score_rect.height + 40))
         self._display_surf.blit(score_text, [int(self.windowWidth / 2 - score_text.get_rect().width / 2), 360])
         
-        self._draw_button("Play Again", self.DARKTEAL, self.DARKTEALHOVER, self.on_reset, y=int(self.windowHeight / 2 + 100), fontsize=100)
-        self._draw_button("Exit", self.DARKRED, self.DARKREDHOVER, self.on_newgame, y=int(self.windowHeight / 2 + 250), fontsize=100)
+        self._draw_button("Play Again", DARKTEAL, DARKTEALHOVER, self.on_reset, y=int(self.windowHeight / 2 + 100), fontsize=100)
+        self._draw_button("Exit", DARKRED, DARKREDHOVER, self.on_newgame, y=int(self.windowHeight / 2 + 250), fontsize=100)
 
     def _draw_button(self, msg, init_color, hover_color, action, x=-1, y=-1, w=-1, h=-1, fontsize=40, fontcolor=(255,255,255)):
         font = pygame.font.Font(None, fontsize)
@@ -513,7 +305,7 @@ class App:
         
         mouse = pygame.mouse.get_pos()
         click = False
-        for event in self.ev:
+        for event in self._ev:
             if event.type == pygame.MOUSEBUTTONUP and event.button == 1: click = True
         
         if w == -1: w = int(text_rect.width + fontsize/2)
