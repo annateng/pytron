@@ -1,10 +1,10 @@
 from enum import Enum, auto
-import os
+#  import os
 
 # LOG FILE
-if os.path.exists("new_log.txt"):
-  os.remove("new_log.txt")
-f = open("new_log.txt", "a")
+#  if os.path.exists("new_log.txt"):
+  #  os.remove("new_log.txt")
+#  f = open("new_log.txt", "a")
 
 class Direction(Enum):
     LEFT = auto()

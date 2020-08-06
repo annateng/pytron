@@ -1,17 +1,10 @@
-from collections import deque
 from pygame.locals import *
 import pygame
 import time
-import os
 import numpy as np
 
 from common import *
 from player import Player
-
-# LOG FILE
-#  if os.path.exists("new_log.txt"):
-  #  os.remove("new_log.txt")
-#  f = open("new_log.txt", "a")
 
 class App:
 
@@ -117,7 +110,8 @@ class App:
             # calculate whether there's a winner yet
             alive_count = self.n_players 
             for i in range(self.n_players):
-                if not self.players[i].alive: alive_count -= 1
+                if not self.players[i].alive: 
+                    alive_count -= 1
                 if alive_count < 2: self._state = self.State.ROUNDOVER
             # add one point to the winning player
             if self._state == self.State.ROUNDOVER: 
@@ -222,16 +216,16 @@ class App:
         self.players = [player1, player2]
     def set_threeplayer(self): 
         self.n_players = 3
-        player1 = Player(self.player_isbots[0], 200, 500, Direction.RIGHT, self.player_colors[0])
-        player2 = Player(self.player_isbots[1], self.windowWidth - 200, 500, Direction.LEFT, self.player_colors[1])
-        player3 = Player(self.player_isbots[2], int(self.windowWidth/2), self.windowHeight - 120, Direction.UP, self.player_colors[2])
+        player1 = Player(self.player_isbots[0], 200, 300, Direction.RIGHT, self.player_colors[0])
+        player2 = Player(self.player_isbots[1], self.windowWidth - 200, 300, Direction.LEFT, self.player_colors[1])
+        player3 = Player(self.player_isbots[2], int(self.windowWidth/2), self.windowHeight - 300, Direction.UP, self.player_colors[2])
         self.players = [player1, player2, player3]
     def set_fourplayer(self): 
         self.n_players = 4
-        player1 = Player(self.player_isbots[0], 200, 500, Direction.RIGHT, self.player_colors[0])
-        player2 = Player(self.player_isbots[1], self.windowWidth - 200, 500, Direction.LEFT, self.player_colors[1])
-        player3 = Player(self.player_isbots[2], 200, 1100, Direction.RIGHT, self.player_colors[2])
-        player4 = Player(self.player_isbots[3], self.windowWidth - 200, 1100, Direction.LEFT, self.player_colors[3])
+        player1 = Player(self.player_isbots[0], 200, 300, Direction.RIGHT, self.player_colors[0])
+        player2 = Player(self.player_isbots[1], self.windowWidth - 200, 300, Direction.LEFT, self.player_colors[1])
+        player3 = Player(self.player_isbots[2], 200, 1300, Direction.RIGHT, self.player_colors[2])
+        player4 = Player(self.player_isbots[3], self.windowWidth - 200, 1300, Direction.LEFT, self.player_colors[3])
         self.players = [player1, player2, player3, player4]
    
     def toggle_player(self, player_number):

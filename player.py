@@ -1,5 +1,4 @@
 from common import *
-import time
 import numpy as np
 from collections import deque
 
@@ -291,7 +290,6 @@ class Player:
         directions[self.direction] *= 1.05
 
         self.direction = max(directions, key=directions.get)
-        #  print(self.direction)
         #  print(str(directions)) # DEBUG
 
 
