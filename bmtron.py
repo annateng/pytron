@@ -50,7 +50,7 @@ class App:
         self._ev = pygame.event.get()
         self.on_newgame()
 
-    def on_loop(self):
+    def on_loop(self, keys):
         if self._state == self.State.PLAYING: 
             
             # update the board
@@ -61,7 +61,35 @@ class App:
             for i in range(self.n_players):
                 if self.players[i].alive:
                     self.players[i].update(self.board, self.players, self.windowWidth, self.windowHeight)
-             
+            
+            # detect key strokes
+            if self._state == self.State.PLAYING:
+                for i in range(self.n_players):
+                    # PLAYER 1: ARROW KEYS
+                    if self.player_controlcodes[i] == 0:
+                        if keys[K_RIGHT]: self.players[i].moveRight()
+                        if keys[K_LEFT]: self.players[i].moveLeft()
+                        if keys[K_UP]: self.players[i].moveUp()
+                        if keys[K_DOWN]: self.players[i].moveDown()
+                    # PLAYER 2: WASD
+                    if self.player_controlcodes[i] == 1:
+                        if keys[K_d]: self.players[i].moveRight()
+                        if keys[K_a]: self.players[i].moveLeft()
+                        if keys[K_w]: self.players[i].moveUp()
+                        if keys[K_s]: self.players[i].moveDown()
+                    # PLAYER 3: GVBN
+                    if self.player_controlcodes[i] == 2:
+                        if keys[K_n]: self.players[i].moveRight()
+                        if keys[K_v]: self.players[i].moveLeft()
+                        if keys[K_g]: self.players[i].moveUp()
+                        if keys[K_b]: self.players[i].moveDown()
+                    # PLAYER 4: OKL;
+                    if self.player_controlcodes[i] == 3:
+                        if keys[K_SEMICOLON]: self.players[i].moveRight()
+                        if keys[K_k]: self.players[i].moveLeft()
+                        if keys[K_o]: self.players[i].moveUp()
+                        if keys[K_l]: self.players[i].moveDown()
+
             # add next block for each player
             for i in range(self.n_players):
                 if self.players[i].alive: 
@@ -179,34 +207,8 @@ class App:
             keys = pygame.key.get_pressed()
             if keys[K_ESCAPE]: self._running = False
 
-            # PLAYER 1: ARROW KEYS
-            if self._state == self.State.PLAYING:
-                for i in range(self.n_players):
-                    if self.player_controlcodes[i] == 0:
-                        if keys[K_RIGHT]: self.players[i].moveRight()
-                        if keys[K_LEFT]: self.players[i].moveLeft()
-                        if keys[K_UP]: self.players[i].moveUp()
-                        if keys[K_DOWN]: self.players[i].moveDown()
-                    # PLAYER 2: WASD
-                    if self.player_controlcodes[i] == 1:
-                        if keys[K_d]: self.players[i].moveRight()
-                        if keys[K_a]: self.players[i].moveLeft()
-                        if keys[K_w]: self.players[i].moveUp()
-                        if keys[K_s]: self.players[i].moveDown()
-                    # PLAYER 3: GVBN
-                    if self.player_controlcodes[i] == 2:
-                        if keys[K_n]: self.players[i].moveRight()
-                        if keys[K_v]: self.players[i].moveLeft()
-                        if keys[K_g]: self.players[i].moveUp()
-                        if keys[K_b]: self.players[i].moveDown()
-                    # PLAYER 4: OKL;
-                    if self.player_controlcodes[i] == 3:
-                        if keys[K_SEMICOLON]: self.players[i].moveRight()
-                        if keys[K_k]: self.players[i].moveLeft()
-                        if keys[K_o]: self.players[i].moveUp()
-                        if keys[K_l]: self.players[i].moveDown()
 
-            self.on_loop()
+            self.on_loop(keys)
             self.on_render()
             end = time.time()
             # maintain constant frame rate
