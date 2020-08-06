@@ -1,0 +1,6 @@
+*.swp
+*.pyc
+new_log.txt
+build/*
+__pycache__/*
+setup.py
