@@ -24,8 +24,8 @@ class App:
         PLAYING = auto()
         ERROR = auto()
 
-    windowHeight = 800
-    windowWidth = 1200
+    windowHeight = 1600
+    windowWidth = 3000
     n_players = 0
     players = []
     scores = []
@@ -210,7 +210,7 @@ class App:
             self.on_render()
             end = time.time()
             # maintain constant frame rate
-            if end - start < 1/20: time.sleep(1/20 - end + start)
+            if end - start < 1/15: time.sleep(1/15 - end + start)
 
         self.on_cleanup()
 
@@ -234,19 +234,19 @@ class App:
    
     def toggle_player(self, player_number):
         if self.player_choices[player_number] == self.controls[player_number]: 
-            has_bot = False # only one bot allowed because he's too slow
-            for i in range(len(self.player_choices)):
-                if self.player_choices[i] == "BOT": 
-                    has_bot = True
-                    break
-            if not has_bot:
-                self.player_choices[player_number] = "BOT"
-                self.button_colors[player_number] = LIGHTGREY
-                self.hover_colors[player_number] = LIGHTGREYHOVER
-            else:
-                self.player_choices[player_number] = "None"
-                self.button_colors[player_number] = GREY
-                self.hover_colors[player_number] = GREYHOVER
+            #  has_bot = False 
+            #  for i in range(len(self.player_choices)):
+                #  if self.player_choices[i] == "BOT": 
+                    #  has_bot = True
+                    #  break
+            #  if not has_bot:
+            self.player_choices[player_number] = "BOT"
+            self.button_colors[player_number] = self.PLAYER_COLORS[player_number]
+            self.hover_colors[player_number] = self.PLAYER_HOVERS[player_number]
+            #  else:
+                #  self.player_choices[player_number] = "None"
+                #  self.button_colors[player_number] = GREY
+                #  self.hover_colors[player_number] = GREYHOVER
         elif self.player_choices[player_number] == "BOT":
             self.player_choices[player_number] = "None"
             self.button_colors[player_number] = GREY
@@ -292,21 +292,21 @@ class App:
                 if self.players[i].alive: winner_str += "Player " + str(i + 1)
         if len(winner_str) == 8: winner_str += "nobody"
         font = pygame.font.Font(None, 150)
-        winner_text = font.render(winner_str, True, LIMEGREEN)
+        winner_text = font.render(winner_str, True, GREEN)
         winner_rect = winner_text.get_rect()
-        pygame.draw.rect(self._display_surf, BLACK, (int(self.windowWidth / 2 - winner_rect.width / 2 - 120), int(100 - winner_rect.height / 2), winner_rect.width + 240, winner_rect.height + 100))
+        pygame.draw.rect(self._display_surf, WHITE, (int(self.windowWidth / 2 - winner_rect.width / 2 - 120), int(100 - winner_rect.height / 2), winner_rect.width + 240, winner_rect.height + 100))
         self._display_surf.blit(winner_text, [int(self.windowWidth / 2 - winner_text.get_rect().width / 2), 100])
 
         score_str = ""
         font = pygame.font.Font(None, 75)
         for i in range(self.n_players):
             score_str += "Player " + str(i + 1) + ": " + str(self.scores[i]) + "      "
-        score_text = font.render(score_str, True, WHITE)
+        score_text = font.render(score_str, True, PINK)
         score_rect = score_text.get_rect()
-        pygame.draw.rect(self._display_surf, BLACK, (int(self.windowWidth / 2 - score_rect.width / 2 - 60), int(360 - score_rect.height / 2), score_rect.width + 120, score_rect.height + 40))
+        pygame.draw.rect(self._display_surf, WHITE, (int(self.windowWidth / 2 - score_rect.width / 2 - 60), int(360 - score_rect.height / 2), score_rect.width + 120, score_rect.height + 40))
         self._display_surf.blit(score_text, [int(self.windowWidth / 2 - score_text.get_rect().width / 2), 360])
         
-        self._draw_button("Play Again", DARKTEAL, DARKTEALHOVER, self.on_new_round, y=int(self.windowHeight / 2 + 100), fontsize=100)
+        self._draw_button("Play Again", LIMEGREEN, LIMEGREENHOVER, self.on_new_round, y=int(self.windowHeight / 2 + 100), fontsize=100)
         self._draw_button("Exit", DARKRED, DARKREDHOVER, self.on_newgame, y=int(self.windowHeight / 2 + 250), fontsize=100)
 
     def _draw_button(self, msg, init_color, hover_color, action, x=-1, y=-1, w=-1, h=-1, fontsize=40, fontcolor=(255,255,255)):

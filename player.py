@@ -1,4 +1,5 @@
 from common import *
+import time
 import numpy as np
 from collections import deque
 
@@ -73,18 +74,16 @@ class Player:
             valid_directions.append(Direction.DOWN)
         return valid_directions
 
-    def _dfs_score(self, start, board):
+    def _bfs_score(self, start, board, direc, numSteps, nextFive=None):
         visited = np.full(board.shape, False)
-        stack = deque()
+        q = deque()
         
         score = 0
         # Append nodes of the form (distance, coordinate)
         dist = 0
-        stack.append((dist, start))
-        while stack and dist < 101: # not len(heap) == 0 and node[0] < 50: 
-            #  node = heapq.heappop(heap)
-            #  block = node[1]
-            node = stack.popleft()
+        q.append((dist, start))
+        while q and dist < numSteps: 
+            node = q.popleft()
             dist = node[0]
             block = node[1]
             #  f.write(",".join(map(str, block)) + "\n")
@@ -102,45 +101,122 @@ class Player:
             numChoices = 0
             if block[0] != 0 and not board[left]:
                 numChoices += 1
-                #  f.write("left ok\n")
                 if not visited[left]:
                     visited[left] = True
                     score += 1
-                    stack.append((dist+1, left))
+                    q.append((dist+1, left))
                 
             if block[0] != board.shape[0] - 1 and not board[right]:
                 numChoices += 1
-                #  f.write("right ok\n")
                 if not visited[right]:
                     visited[right] = True
                     score += 1
-                    stack.append((dist+1, right))
+                    q.append((dist+1, right))
             
             if block[1] != 0 and not board[up]:
                 numChoices += 1
-                #  f.write("up ok\n")
                 if not visited[up]:
                     visited[up] = True
                     score += 1
-                    stack.append((dist+1, up))
+                    q.append((dist+1, up))
 
             if block[1] != board.shape[1] - 1 and not board[down]:
                 numChoices += 1
-                #  f.write("down ok\n")
                 if not visited[down]:
                     visited[down] = True
                     score += 1
-                    stack.append((dist+1, down))
+                    q.append((dist+1, down))
             # discourage going down one lane paths (no escape)
             if numChoices < 2: 
                 score -= 5
-            f.write(str(numChoices) + "\n")
 
+        # encourage cutting players off
+        if nextFive:
+            snf = []
+            if direc == Direction.LEFT:
+                for i in range(0, 5):
+                    if start[0] - i < 0: 
+                        break
+                    n = (start[0] - i, start[1]) 
+                    if i == 0 or not board[n]: snf.append(n)
+                    else: break
+            elif direc == Direction.RIGHT:
+                for i in range(0, 5):
+                    if start[0] + i > board.shape[0] - 1: 
+                        break
+                    n = (start[0] + i, start[1])
+                    if i == 0 or not board[n]: snf.append(n) 
+                    else: break
+            elif direc == Direction.UP:
+                for i in range(0, 5):
+                    if start[1] - i < 0: 
+                        break
+                    n = (start[0], start[1] - i)
+                    if i == 0 or not board[n]: snf.append(n)
+                    else: break
+            else:
+                for i in range(0,5):
+                    if start[1] + i > board.shape[1] - 1: 
+                        break
+                    n = (start[0], start[1] + i)
+                    if i == 0 or not board[n]: snf.append(n)
+                    else: break
+            #  print("dir " + str(direc) + " snf:")
+            #  print(snf) # DEBUG
+            #  print("nf")
+            #  print(nextFive)
+            for nf in nextFive:
+                for i in range(len(nf)):
+                    pos = nf[i]
+                    if pos in snf and snf.index(pos) <= i: 
+                        score += 1000
+                        #  print('cutoff')
+        
         return score 
 
-    def _get_score(self, board, start, players):
-        
-        self_score = self._dfs_score(start, board)
+    def _get_next_five(self, board, players, windowWidth, windowHeight):
+        nfs = []
+        for player in players:
+            nf = []
+            if player.x == self.x and player.y == self.y: 
+                continue
+            if player.direction == Direction.LEFT:
+                for i in range(2, 6):
+                    if player.x - (step_size * i) < 0: 
+                        break
+                    n = ind(max(player.x - (step_size * i), 0), player.y)
+                    if not board[n]: nf.append(n)
+                    else: 
+                        break
+            elif player.direction == Direction.RIGHT:
+                for i in range(2, 6):
+                    if player.x + (step_size * i) > windowWidth - step_size: 
+                        break
+                    n = ind(min(player.x + (step_size * i), windowWidth - step_size), player.y)
+                    if not board[n]: nf.append(n)
+                    else: 
+                        break
+            elif player.direction == Direction.UP:
+                for i in range(2, 6):
+                    if player.y - (step_size * i) < 0: 
+                        break
+                    n = ind(player.x, max(player.y - (step_size * i), 0))
+                    if not board[n]: nf.append(n)
+                    else: 
+                        break
+            else: 
+                for i in range(2, 6):
+                    if player.y + (step_size * i) > windowHeight - step_size: 
+                        break
+                    n = ind(player.x, min(player.y + (step_size * i), windowHeight - step_size))
+                    if not board[n]: nf.append(n)
+                    else: 
+                        break
+            nfs.append(nf)
+        return nfs
+
+    def _get_score(self, board, start, players, nextFive, direc):
+        self_score = self._bfs_score(start, board, direc, 101, nextFive)
         return self_score 
 
     def update(self, board, players, windowWidth, windowHeight):
@@ -150,10 +226,10 @@ class Player:
 
         # initialize preferences to -1000
         directions = {
-            Direction.LEFT: -1000,
-            Direction.RIGHT: -1000,
-            Direction.UP: -1000,
-            Direction.DOWN: -1000 
+            Direction.LEFT: float('-inf'),
+            Direction.RIGHT: float('-inf'),
+            Direction.UP: float('-inf'),
+            Direction.DOWN: float('-inf') 
         }
 
         # assume all players (except self) continue one step in each direction to avoid head-on collisions
@@ -168,7 +244,12 @@ class Player:
         for coord in coords:
             board[coord] = True
         
-        for direction in self._get_valid_directions(board, windowWidth, windowHeight):
+        # get next five straight moves for all players (except self)
+        nextFive = self._get_next_five(board, players, windowWidth, windowHeight) 
+        #  print(nextFive) # DEBUG 
+
+        validDirections = self._get_valid_directions(board, windowWidth, windowHeight)
+        for direction in validDirections:
             start = None
             if direction == Direction.UP:
                 start = ind(self.x, self.y-step_size)
@@ -179,20 +260,38 @@ class Player:
             elif direction == Direction.DOWN:
                 start = ind(self.x, self.y+step_size)
             board[start] = True
-            selfScore = self._get_score(board, start, players)
-            #  otherScore = 0
-            #  for player in players:
-                #  otherScore += self._get_score(board, ind(player.x, player.y), players)
-            #  directions[direction] = selfScore / max(otherScore, 1)
-            directions[direction] = selfScore
+            directions[direction] = self._get_score(board, start, players, nextFive, direction)
             board[start] = False
         
         # set board back
         for j in range(len(coords)):
             board[coords[j]] = old[j]
 
-        #  f.write(str(directions) + "\n")
-        #  print(str(directions))
+        # if the best direction is "splitting" ie it will divide the board into two halves, discourage it
+        if directions[Direction.UP] > 0 and (self.y <= step_size or board[ind(self.x, self.y-step_size*2)]) \
+                and Direction.LEFT in validDirections and Direction.RIGHT in validDirections:
+            #  print('up split') # debug
+            directions[Direction.UP] /= 2
+        if directions[Direction.LEFT] > 0 and (self.x <= step_size or board[ind(self.x-step_size*2, self.y)]) \
+                and Direction.UP in validDirections and Direction.DOWN in validDirections:
+            #  print('left split') # debug
+            directions[Direction.LEFT] /= 2
+        if directions[Direction.RIGHT] > 0 and (self.x >= windowWidth - step_size*2 or \
+                board[ind(self.x+step_size*2, self.y)]) and Direction.UP in validDirections \
+                and Direction.DOWN in validDirections:
+            #  print('right split') # debug
+            directions[Direction.RIGHT] /= 2
+        if directions[Direction.DOWN] > 0 and (self.y >= windowHeight - step_size*2 or \
+                board[ind(self.x, self.y+step_size*2)]) and Direction.LEFT in validDirections and \
+                Direction.RIGHT in validDirections:
+            directions[Direction.DOWN] /= 2
+            #  print('down split') # debug
+            
+        # encourage going in the same direction
+        directions[self.direction] *= 1.05
+
         self.direction = max(directions, key=directions.get)
+        #  print(self.direction)
+        #  print(str(directions)) # DEBUG
 
 
